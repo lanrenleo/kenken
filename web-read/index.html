@@ -7,7 +7,7 @@
     <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- 引入 腾讯云开发 SDK -->
-    <script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js"></script>
+<script src="https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js"></script>
     
     <style>
         /* === 全局基础样式 === */
@@ -229,48 +229,78 @@
             const showPinModal = ref(false);
             const inputPin = ref('');
             
-            // === 初始化 ===
-            const initCloud = async () => {
-    try {
-        // 1. 检查 SDK 是否加载成功
-        if (typeof cloudbase === 'undefined') {
-            throw new Error('云开发 SDK 未加载，请检查网络或 script 标签');
+   // === 辅助函数：动态加载 SDK (防止 script 标签在 head 中没加载完) ===
+const loadSdkScript = () => {
+    return new Promise((resolve, reject) => {
+        if (window.cloudbase) {
+            resolve(window.cloudbase); // 如果已经有了，直接返回
+            return;
         }
+        const script = document.createElement('script');
+        // 使用官方最新版 SDK
+        script.src = "https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js";
+        script.onload = () => {
+            console.log("SDK 加载完成");
+            resolve(window.cloudbase);
+        };
+        script.onerror = () => reject(new Error("SDK 加载失败，请检查网络"));
+        document.head.appendChild(script);
+    });
+};
 
-        // 2. 初始化 (注意：使用的是 cloudbase，而不是 tcb)
+// === 初始化 (修改后的版本) ===
+const initCloud = async () => {
+    try {
+        loading.value = true;
+        
+        // 1. 等待 SDK 加载完毕 (核心修复点)
+        const cloudbase = await loadSdkScript();
+
+        // 2. 初始化
         const app = cloudbase.init({
-            env: 'cloud1-4gcnkqkl8e5bcae5' 
+            env: 'cloud1-4gcnkqkl8e5bcae5' // 你的环境 ID
         });
 
-        // 3. 登录逻辑
+        // 3. 登录
         const auth = app.auth();
+        const loginState = await auth.getLoginState();
         
-        // 尝试匿名登录 (需要在腾讯云后台开启“匿名登录”)
-        await auth.signInAnonymously();
-        
-        // 4. 获取数据库引用
-        db.value = app.database();
+        // 如果没有登录态，尝试匿名登录
+        if (!loginState) {
+            await auth.signInAnonymously();
+        }
 
-        // 5. 检查本地是否有之前的用户信息缓存
+        db.value = app.database();
+        console.log("云开发连接成功");
+
+        // 4. 检查本地用户缓存
         const savedUser = localStorage.getItem('web_user');
         if (savedUser) {
             currentUser.value = JSON.parse(savedUser);
             const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
             if (savedMode === 'false') isKidMode.value = false;
             
-            // 用户已存在，加载数据
-            loadBooks();
+            // 加载书籍数据
+            await loadBooks();
+        } else {
+            loading.value = false; // 如果没登录，也要把 loading 关掉
         }
-        
-        console.log("云开发初始化成功");
 
     } catch (e) {
         console.error('Cloud init failed', e);
-        // 这里的提示更友好一点
-        alert('连接服务器失败：' + (e.message || e));
+        loading.value = false;
+        // 如果是匿名登录未开启导致的，提示用户
+        if (e.message && e.message.includes('LOGIN_Type_Not_Supported')) {
+            alert('请在腾讯云后台-登录授权中开启“匿名登录”');
+        } else {
+            // 暂时不弹窗打扰，只在控制台报错
+        }
     }
 };
 
+onMounted(() => {
+    initCloud();
+});
 
             // === 核心业务：加载书籍 ===
             const loadBooks = async () => {
