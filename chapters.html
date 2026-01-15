@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>章节列表</title>
-    <!-- Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- 移除旧 SDK，改用动态加载 -->
+    <!-- 引入官方 SDK -->
+    <script src="https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js"></script>
     
     <style>
         /* === 样式区域 (保持不变) === */
@@ -54,6 +54,7 @@
 
 <div id="app">
     <div class="container">
+        
         <!-- 筛选栏 -->
         <div class="filter-bar" v-if="activeTag" @click="clearTag">
             <span>当前筛选：{{ activeTag }}</span>
@@ -63,7 +64,8 @@
         <div class="chapter-list-container">
             <div v-if="filteredList.length > 0">
                 <div v-for="(item, index) in filteredList" :key="item._id">
-                    <!-- 样式 A -->
+                    
+                    <!-- 样式 A：带封面的大卡片 -->
                     <div v-if="item.cover_url" class="chapter-card" @click="goToReader(item._id)">
                         <div class="card-cover-box">
                             <img class="card-cover" :src="item.cover_url" loading="lazy">
@@ -81,11 +83,14 @@
                             <div class="tags-static-box" v-if="item.tags && item.tags.length">
                                 <span v-for="tag in item.tags" :key="tag" 
                                       :class="['tag-item', activeTag === tag ? 'active' : '']"
-                                      @click.stop="onTagTap(tag)">{{ tag }}</span>
+                                      @click.stop="onTagTap(tag)">
+                                    {{ tag }}
+                                </span>
                             </div>
                         </div>
                     </div>
-                    <!-- 样式 B -->
+
+                    <!-- 样式 B：纯文字列表 -->
                     <div v-else class="chapter-item" @click="goToReader(item._id)">
                         <div class="simple-title">
                             <span class="idx">{{ index + 1 }}.</span>
@@ -101,13 +106,16 @@
                         </div>
                         <span class="arrow">›</span>
                     </div>
+
                 </div>
             </div>
+
             <!-- 空状态 -->
             <div v-else class="empty-tip">
                 {{ loading ? '' : (activeTag ? '该标签下暂无内容' : '暂无章节') }}
             </div>
         </div>
+
         <div v-if="loading" class="loading">加载中...</div>
     </div>
 </div>
@@ -141,7 +149,11 @@
             const initCloud = async () => {
                 const urlParams = new URLSearchParams(window.location.search);
                 const id = urlParams.get('bookId');
-                if (!id) return alert('缺少 Book ID');
+                
+                if (!id) {
+                    alert('缺少 Book ID');
+                    return;
+                }
                 bookId.value = id;
 
                 // 检查登录状态
@@ -165,45 +177,58 @@
                     loadBookInfoAndChapters();
                 } catch (e) {
                     console.error('Cloud init failed', e);
-                    // 核心逻辑：如果这里报错（例如凭证失效），跳回首页让首页的暴力逻辑去修复
-                    alert('连接已断开，正在返回首页重新连接...');
+                    alert('连接失败，请返回首页重试');
                     window.location.href = 'index.html';
                 }
             };
 
+            // === 核心修改：改为直接查库，不查云函数 ===
             const loadBookInfoAndChapters = async () => {
                 loading.value = true;
                 try {
+                    // 1. 获取书籍分类 (查 books 表)
                     const bookRes = await db.value.collection('books').doc(bookId.value).get();
                     if(bookRes.data && bookRes.data.length > 0) {
                        bookCategory.value = bookRes.data[0].category || 'audiobook';
                        document.title = bookRes.data[0].title || '章节列表';
                     }
 
-                    const tcb = db.value.app;
-                    const res = await tcb.callFunction({
-                        name: 'adminHelper',
-                        data: { action: 'getChapterList', bookId: bookId.value }
+                    // 2. 获取章节列表 (查 chapters 表)
+                    // 关键：这里直接查库，必须去后台把 chapters 表权限改为“所有用户可读”
+                    const countRes = await db.value.collection('chapters').where({ bookId: bookId.value }).count();
+                    const total = countRes.total;
+                    
+                    // 如果超过 20 条，云开发一次最多取 20 条，这里简单演示一次取 20 条
+                    // 如果你的章节很多，建议加上 limit(1000) 或者分页
+                    const res = await db.value.collection('chapters')
+                        .where({ bookId: bookId.value })
+                        .limit(1000) // 尝试一次拉取最多1000章
+                        .get();
+
+                    let list = res.data;
+                    
+                    if (list.length === 0) {
+                        console.warn("未查到章节，请检查：1.chapters表权限 2.bookId字段名是否匹配");
+                    }
+
+                    // 3. 排序 (逻辑与小程序一致)
+                    list.sort((a, b) => {
+                        const titleA = a.title || '';
+                        const titleB = b.title || '';
+                        const cat = bookCategory.value;
+                        
+                        if (cat === 'podcast' || cat === 'youtube') {
+                            return titleB.localeCompare(titleA, undefined, { numeric: true });
+                        } else {
+                            return titleA.localeCompare(titleB, undefined, { numeric: true });
+                        }
                     });
 
-                    if (res.result && res.result.success) {
-                        let list = res.result.data;
-                        list.sort((a, b) => {
-                            const titleA = a.title || '';
-                            const titleB = b.title || '';
-                            const cat = bookCategory.value;
-                            if (cat === 'podcast' || cat === 'youtube') {
-                                return titleB.localeCompare(titleA, undefined, { numeric: true });
-                            } else {
-                                return titleA.localeCompare(titleB, undefined, { numeric: true });
-                            }
-                        });
-                        updateListWithProgress(list);
-                    } else {
-                        alert('加载失败: ' + (res.result ? res.result.msg : '未知错误'));
-                    }
+                    updateListWithProgress(list);
+
                 } catch (err) {
-                    console.error(err);
+                    console.error("Query DB Error:", err);
+                    alert("加载失败，请检查网络或权限");
                 } finally {
                     loading.value = false;
                 }
@@ -212,11 +237,14 @@
             const updateListWithProgress = (list) => {
                 const progressJson = localStorage.getItem(PROGRESS_KEY);
                 const progressMap = progressJson ? JSON.parse(progressJson) : {};
+                
                 const processedList = list.map(item => {
                     const key = `${bookId.value}_${item._id}`;
                     const currentIndex = progressMap[key] || 0;
+                    
                     let progressPercent = 0;
                     let progressText = '';
+                    
                     if (currentIndex > 0) {
                         if (item.sentence_count && item.sentence_count > 0) {
                             progressPercent = Math.min(100, Math.floor((currentIndex / item.sentence_count) * 100));
@@ -226,8 +254,15 @@
                             progressPercent = 10;
                         }
                     }
-                    return { ...item, progressPercent, progressText, hasStarted: currentIndex > 0 };
+
+                    return {
+                        ...item,
+                        progressPercent,
+                        progressText,
+                        hasStarted: currentIndex > 0
+                    };
                 });
+
                 fullChapterList.value = processedList;
             };
 
@@ -242,7 +277,10 @@
 
             onMounted(() => { initCloud(); });
 
-            return { loading, filteredList, activeTag, onTagTap, clearTag, goToReader };
+            return {
+                loading, filteredList, activeTag,
+                onTagTap, clearTag, goToReader
+            };
         }
     }).mount('#app');
 </script>
