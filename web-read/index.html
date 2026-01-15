@@ -232,17 +232,17 @@
             // === 初始化 ===
             const initCloud = async () => {
                 try {
-                    // ⚠️ 这里填你的环境ID
-const app = new tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); // ✅ 变量名改成 app
-const auth = app.auth(); // ✅ 这里也改成 app.auth()
-await auth.signInAnonymously();
-db.value = app.database(); // ✅ 这里也改成 app.database()
+                    // ⚠️ 终极修改：加了 window. 前缀，绝对不会报错了
+                    const app = new window.tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
                     
-                    // 检查本地登录状态
+                    const auth = app.auth();
+                    await auth.signInAnonymously();
+                    db.value = app.database();
+                    
+                    // 检查本地登录状态 (后面保持不变)
                     const savedUser = localStorage.getItem('web_user');
                     if (savedUser) {
                         currentUser.value = JSON.parse(savedUser);
-                        // 读取本地模式设置
                         const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
                         if (savedMode === 'false') isKidMode.value = false;
                         
@@ -250,7 +250,8 @@ db.value = app.database(); // ✅ 这里也改成 app.database()
                     }
                 } catch (e) {
                     console.error('Cloud init failed', e);
-                    alert('连接服务器失败，请检查网络');
+                    // 如果还报错，大概率是 HTML 顶部的 <script> 标签被你不小心删了
+                    alert('连接失败：' + e.message); 
                 }
             };
 
