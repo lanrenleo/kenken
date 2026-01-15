@@ -233,10 +233,10 @@
             const initCloud = async () => {
                 try {
                     // ⚠️ 这里填你的环境ID
-                    const tcb = new tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
-                    const auth = tcb.auth();
-                    await auth.signInAnonymously();
-                    db.value = tcb.database();
+const app = new tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); // ✅ 变量名改成 app
+const auth = app.auth(); // ✅ 这里也改成 app.auth()
+await auth.signInAnonymously();
+db.value = app.database(); // ✅ 这里也改成 app.database()
                     
                     // 检查本地登录状态
                     const savedUser = localStorage.getItem('web_user');
