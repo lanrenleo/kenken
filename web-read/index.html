@@ -230,16 +230,24 @@
             const inputPin = ref('');
             
             // === 初始化 ===
-            const initCloud = async () => {
+           const initCloud = async () => {
+                // === 新增：安全检查逻辑 ===
+                // 如果发现 tcb 还没加载好，就等 500毫秒 再重新运行这个函数
+                if (!window.tcb) {
+                    console.log('正在等待腾讯云SDK加载...');
+                    setTimeout(initCloud, 500); 
+                    return;
+                }
+                // ========================
+
                 try {
-                    // ⚠️ 终极修改：加了 window. 前缀，绝对不会报错了
+                    // 这里不需要改了，只要上面加载好了，这里就能用
                     const app = new window.tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
-                    
                     const auth = app.auth();
                     await auth.signInAnonymously();
                     db.value = app.database();
                     
-                    // 检查本地登录状态 (后面保持不变)
+                    // 检查本地登录状态
                     const savedUser = localStorage.getItem('web_user');
                     if (savedUser) {
                         currentUser.value = JSON.parse(savedUser);
@@ -250,8 +258,6 @@
                     }
                 } catch (e) {
                     console.error('Cloud init failed', e);
-                    // 如果还报错，大概率是 HTML 顶部的 <script> 标签被你不小心删了
-                    alert('连接失败：' + e.message); 
                 }
             };
 
