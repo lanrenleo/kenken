@@ -4,12 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Web Library</title>
-    <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    
-    <!-- ✅ 【最终方案】使用字节跳动 CDN 加载新版 SDK -->
     <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/cloudbase-js-sdk/2.10.3/cloud.min.js"></script>
-    
     <style>
         :root { --primary-color: #07c160; --bg-color: #f6f6f6; }
         body { margin: 0; padding: 0; background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -104,11 +100,14 @@
                 try {
                     if (typeof cloudbase === 'undefined') {
                         console.error('Cloudbase SDK load failed');
+                        loading.value = false;
                         return;
                     }
 
                     const app = cloudbase.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
                     const auth = app.auth();
+
+                    // ✅ 【最终修复】检查并确保匿名登录成功
                     const loginState = await auth.getLoginState();
                     if (!loginState) {
                        await auth.anonymousAuthProvider().signIn();
@@ -126,7 +125,7 @@
                         loading.value = false; 
                     }
                 } catch (e) {
-                    console.error('Cloud init failed', e);
+                    console.error('Cloud init failed with error:', e);
                     loading.value = false;
                 }
             };
@@ -175,7 +174,9 @@
             const goToVocabulary = () => { window.location.href='vocabulary-index.html'; };
             const goToStats = () => { window.location.href='stats.html'; };
 
-            onMounted(() => { initCloud(); });
+            onMounted(() => {
+                initCloud();
+            });
 
             return { CATEGORY_MAP, currentUser, loginCode, filteredBookList, currentCategory, loading, keyword, activeTag, isKidMode, showPinModal, inputPin, handleLogin, logout, switchCategory, onSearchInput, onTagTap, clearTagFilter, toggleKidMode, verifyPin, onBookTap, goToVocabulary, goToStats };
         }
