@@ -231,30 +231,46 @@
             
             // === 初始化 ===
             const initCloud = async () => {
-                try {
-                    // ⚠️ 改动 1：把 const tcb 改成 const app
-                    const app = new tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
-                    
-                    // ⚠️ 改动 2：下面用 app 来调用
-                    const auth = app.auth();
-                    await auth.signInAnonymously();
-                    db.value = app.database();
-                    
-                    // 检查本地登录状态
-                    const savedUser = localStorage.getItem('web_user');
-                    if (savedUser) {
-                        currentUser.value = JSON.parse(savedUser);
-                        // 读取本地模式设置
-                        const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
-                        if (savedMode === 'false') isKidMode.value = false;
-                        
-                        loadBooks();
-                    }
-                } catch (e) {
-                    console.error('Cloud init failed', e);
-                    alert('连接服务器失败，请检查网络');
-                }
-            };
+    try {
+        // 1. 检查 SDK 是否加载成功
+        if (typeof cloudbase === 'undefined') {
+            throw new Error('云开发 SDK 未加载，请检查网络或 script 标签');
+        }
+
+        // 2. 初始化 (注意：使用的是 cloudbase，而不是 tcb)
+        const app = cloudbase.init({
+            env: 'cloud1-4gcnkqkl8e5bcae5' 
+        });
+
+        // 3. 登录逻辑
+        const auth = app.auth();
+        
+        // 尝试匿名登录 (需要在腾讯云后台开启“匿名登录”)
+        await auth.signInAnonymously();
+        
+        // 4. 获取数据库引用
+        db.value = app.database();
+
+        // 5. 检查本地是否有之前的用户信息缓存
+        const savedUser = localStorage.getItem('web_user');
+        if (savedUser) {
+            currentUser.value = JSON.parse(savedUser);
+            const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
+            if (savedMode === 'false') isKidMode.value = false;
+            
+            // 用户已存在，加载数据
+            loadBooks();
+        }
+        
+        console.log("云开发初始化成功");
+
+    } catch (e) {
+        console.error('Cloud init failed', e);
+        // 这里的提示更友好一点
+        alert('连接服务器失败：' + (e.message || e));
+    }
+};
+
 
             // === 核心业务：加载书籍 ===
             const loadBooks = async () => {
