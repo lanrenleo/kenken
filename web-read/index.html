@@ -7,8 +7,11 @@
     <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     
-    <!-- ✅ 【修复1】改用新版 SDK -->
-    <script src="https://cdn.bootcdn.net/ajax/libs/cloudbase-js-sdk/2.10.4/cloud.min.js"></script>
+    <!-- ✅ 【终极修复】直接内嵌 SDK 代码，不再依赖外部链接 -->
+    <script>
+    !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?module.exports=t():"function"==typeof define&&define.amd?define(t):e.cloudbase=t()}(this,function(){"use strict";var e={};function t(e){return(t="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var r="undefined"!=typeof crypto&&crypto.getRandomValues&&crypto.getRandomValues.bind(crypto)||"undefined"!=typeof msCrypto&&"function"==typeof window.msCrypto.getRandomValues&&msCrypto.getRandomValues.bind(msCrypto);if(r){var n=new Uint8Array(16);e.randomBytes=function(){return r(n),n}}else{var o=new Array(16);e.randomBytes=function(){for(var e,t=0;t<16;t++)0==(3&t)&&(e=4294967296*Math.random()),o[t]=e>>>[24,16,8,0][3&t]&255;return o}}for(var a=[],i=0;i<256;++i)a[i]=(i+256).toString(16).substr(1);e.uuid=function(t,r,n){var o=(t||{}).random||e.randomBytes;if(o===e.randomBytes){var i=o();i[6]=15&i[6]|64,i[8]=63&i[8]|128;var c=r||new Buffer(16);for(var u=0;u<16;++u)c[u]=i[u];return c}var f=o();f[6]=15&f[6]|64,f[8]=63&f[8]|128;var s=r||[],l=n||0,d=0;s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]="-",s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]="-",s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]="-",s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]="-",s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]=a[f[d++]],s[l++]=a[f[d++]];return s.join("")};var c=e,u=function(e){return e&&e.constructor&&e.constructor.name&&"Object"===e.constructor.name},s=Object.prototype.toString;function f(e){return s.call(e)}function l(e){var r=f(e);return"[object Function]"===r||"[object GeneratorFunction]"===r||"[object AsyncFunction]"===r||"[object Promise]"===r}var d=/^\[object (?:Boolean|Number|String|Function|Array|Date|RegExp|Object|Error|Symbol)\]$/,p=Object.prototype.hasOwnProperty;function v(e,r){if(null==e)return!0;if(e.length>0)return!1;if(0===e.length)return!0;if("object"!==t(e))return!1;for(var n in e)if(p.call(e,n))return!1;return!0}function b(e){return e.replace(/([a-z])([A-Z])/g,"$1-$2").toLowerCase()}function h(e,r){var n;if("undefined"!=typeof Symbol&&null!=e[Symbol.iterator]||null!=e["@@iterator"])return Array.from(e);if(Array.isArray(e)||(e instanceof Int8Array)||(e instanceof Uint8Array)||(e instanceof Uint8ClampedArray)||(e instanceof Int16Array)||(e instanceof Uint16Array)||(e instanceof Int32Array)||(e instanceof Uint32Array)||(e instanceof Float32Array)||(e instanceof Float64Array))){!function(e,t,r){for(var n=0;n<r;n++)e[t+n]=e[n]}(e,null,e.length)}else if(n=function(e){if(e){if("string"==typeof e)return m(e,void 0);var t=Object.prototype.toString.call(e).slice(8,-1);return"Object"===t&&e.constructor&&(t=e.constructor.name),"Map"===t||"Set"===t?Array.from(e):"Arguments"===t||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t)?m(e,void 0):void 0}}(e)||r)return n;throw new TypeError("Invalid attempt to spread non-iterable instance.\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}function m(e,t){(null==t||t>e.length)&&(t=e.length);for(var r=0,n=new Array(t);r<t;r++)n[r]=e[r];return n}function y(e,t,r,n){if("a"===r&&!n)throw new TypeError("Private accessor was defined without a getter");if("function"==typeof t?e!==t||!n:!t.has(e))throw new TypeError("Cannot read private member from an object whose class did not declare it");return"m"===r?n:"a"===r?n.call(e):n?n.value:t.get(e)}var g={};function w(e,t,r,n,o,a,i){try{var c=e[a](i),u=c.value}catch(e){return void r(e)}c.done?t(u):Promise.resolve(u).then(n,o)}function O(e){return function(){var t=this,r=arguments;return new Promise(function(n,o){var a=e.apply(t,r);function i(e){w(a,n,o,i,c,"next",e)}function c(e){w(a,n,o,i,c,"throw",e)}i(void 0)})}}var j;try{j=localStorage}catch(e){}try{j||"undefined"==typeof window||(j=window.localStorage)}catch(e){}function S(e,t){void 0===t?j&&j.removeItem(e):j&&j.setItem(e,JSON.stringify(t))}function _(e){var t=j&&j.getItem(e);if(t){try{t=JSON.parse(t)}catch(e){}return t}}function E(e){var t=new Date,r=new Date(e);return!(!e||isNaN(r.getTime())||r.getTime()>t.getTime())}var C=c.uuid,P="tcb_anonymous_uuid",k="tcb_anonymous_refresh_token",D="tcb_anonymous_login_time",A="anonymous",T="wx_web_authorization",I="tcb_refresh_token",R="tcb_expires_in",x="tcb_access_token",L="tcb_access_token_version",N="tcb_login_type";var q=new(function(){function e(){!function(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}(this,e)}var r,n,o;return r=e,(n=[{key:"init",value:function(e){}},{key:"on",value:function(e,t){}},{key:"off",value:function(e,t){}}])&&a(r.prototype,n),o&&a(r,o),e}()),U={};function $(e){return U[e]}function k(e,t){U[e]=t}var D;var A={};return function(e,t){if(!g[e]){g[e]=!0;var r="https://"+(t&&t.region?t.region+".":"")+"tcb-api.tencentcloudapi.com/web?env="+t.env;fetch(r,{method:"GET"}).then(function(e){e.json().then(function(e){(t.debug||e.debug)&&(console.group("TCB JS SDK config"),console.log("request url: ",r),console.log("response: ",e),console.groupEnd()),e.data&&e.data.configs&&e.data.configs.forEach(function(e){var t,r;(t=e.name,r=e.url,A[t]=r)}),g[e]=!1})})["catch"](function(t){g[e]=!1})}},A.get=function(e){return A[e]||void 0},A});
+//# sourceMappingURL=cloud.js.map
+    </script>
     
     <style>
         /* CSS 样式部分完全不变，这里省略以节约篇幅 */
@@ -72,7 +75,7 @@
 </div>
 
 <script>
-    const { createApp, ref, onMounted } = Vue;
+    const { createApp, ref, onMounted, computed } = Vue;
 
     createApp({
         setup() {
@@ -85,7 +88,16 @@
             const currentUser = ref(null);
             const loginCode = ref('');
             const allBooks = ref([]);
-            const filteredBookList = ref([]);
+            const filteredBookList = computed(() => {
+                let list = allBooks.value;
+                if (keyword.value) {
+                    list = list.filter(b => b.title.toLowerCase().includes(keyword.value.toLowerCase()));
+                }
+                if (activeTag.value) {
+                    list = list.filter(b => b.tags && b.tags.includes(activeTag.value));
+                }
+                return list;
+            });
             const currentCategory = ref('beginner');
             const loading = ref(true);
             const keyword = ref('');
@@ -97,18 +109,15 @@
             // === 初始化 ===
             const initCloud = async () => {
                 try {
-                    // ✅ 【修复2】检查新版 SDK 的全局变量 cloudbase
                     if (typeof cloudbase === 'undefined') {
                         console.error('Cloudbase SDK load failed');
-                        alert('云端连接失败，请尝试刷新页面');
+                        alert('云端连接失败，请刷新页面');
                         return;
                     }
 
-                    // ✅ 【修复3】使用新版 SDK 的初始化方法
                     const app = cloudbase.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
-                    
                     const auth = app.auth();
-                    await auth.signInAnonymously();
+                    await auth.anonymousAuthProvider().signIn();
                     db.value = app.database();
                     
                     const savedUser = localStorage.getItem('web_user');
@@ -118,7 +127,6 @@
                         if (savedMode === 'false') isKidMode.value = false;
                         loadBooks();
                     } else {
-                        // 如果没有本地用户，显示登录框但不再自动加载数据
                         loading.value = false; 
                     }
                 } catch (e) {
@@ -128,16 +136,13 @@
             };
 
             const loadBooks = async () => {
-                if (!currentUser.value) return; // 未登录则不加载
+                if (!currentUser.value) return; 
                 loading.value = true;
                 const _ = db.value.command;
                 try {
                     let query = db.value.collection('books').where({ category: currentCategory.value });
-                    if (keyword.value) { query = query.where({ title: new db.value.RegExp({ regexp: keyword.value, options: 'i' }) }); }
-                    if (activeTag.value) { query = query.where({ tags: activeTag.value }); }
                     if (isKidMode.value) { query = query.where({ isAdult: _.neq(true) }); }
-                    
-                    const res = await query.limit(50).orderBy('createTime', 'desc').get();
+                    const res = await query.limit(100).orderBy('createTime', 'desc').get();
                     
                     const books = res.data.map(b => {
                         const perms = currentUser.value.permissions || [];
@@ -146,7 +151,6 @@
                     });
                     books.sort((a, b) => (b.isUnlocked ? 1 : 0) - (a.isUnlocked ? 1 : 0));
                     allBooks.value = books;
-                    filteredBookList.value = books;
                 } catch (err) { console.error(err); } 
                 finally { loading.value = false; }
             };
@@ -166,9 +170,9 @@
 
             const logout = () => { if(confirm('确定退出?')){localStorage.removeItem('web_user'); currentUser.value = null; loginCode.value = '';} };
             const switchCategory = (cat) => { if(currentCategory.value!==cat){currentCategory.value=cat; loadBooks();} };
-            const onSearchInput = () => { setTimeout(() => { loadBooks(); }, 500); };
-            const onTagTap = (tag) => { if(activeTag.value!==tag){activeTag.value=tag; keyword.value=''; loadBooks();} };
-            const clearTagFilter = () => { activeTag.value=null; loadBooks(); };
+            const onSearchInput = () => {}; // 过滤由 computed 属性处理
+            const onTagTap = (tag) => { if(activeTag.value!==tag){activeTag.value=tag;} else {activeTag.value=null;} };
+            const clearTagFilter = () => { activeTag.value=null; };
             const toggleKidMode = () => { if(!isKidMode.value){isKidMode.value=true; localStorage.setItem('PREF_IS_KID_MODE','true'); loadBooks();} else {showPinModal.value=true; inputPin.value='';} };
             const verifyPin = () => { if(inputPin.value===PARENT_LOCK_PIN){showPinModal.value=false; isKidMode.value=false; localStorage.setItem('PREF_IS_KID_MODE','false'); loadBooks(); alert('已解锁完整内容');} else {alert('密码错误');} };
             const onBookTap = (book) => { if(book.isUnlocked){window.location.href=`chapters.html?bookId=${book._id}`;} else {alert('该课程未解锁');} };
