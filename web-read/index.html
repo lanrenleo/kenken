@@ -8,7 +8,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     
     <style>
-        /* === 样式部分保持不变，为了节省篇幅，这里省略，请保留你原来的 CSS === */
+        /* === 样式区域 === */
         :root { --primary-color: #07c160; --bg-color: #f6f6f6; }
         body { margin: 0; padding: 0; background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { display: none; }
@@ -55,15 +55,13 @@
         .modal-btn { flex: 1; height: 50px; line-height: 50px; text-align: center; font-size: 16px; cursor: pointer; }
         .modal-btn.cancel { color: #666; border-right: 1px solid #eee; }
         .modal-btn.confirm { color: #07c160; font-weight: bold; }
-        .modal-btn:active { background-color: #f9f9f9; }
+        .modal-btn.confirm:active { background-color: #06ad56; }
         @media screen and (min-width: 500px) {
             .container { max-width: 800px; margin: 0 auto; background-color: #fff; min-height: 100vh; }
             .book-container { width: 33.33%; }
             .fixed-header { max-width: 800px; left: 50%; transform: translateX(-50%); }
         }
-        @media screen and (min-width: 768px) {
-            .book-container { width: 25%; }
-        }
+        @media screen and (min-width: 768px) { .book-container { width: 25%; } }
     </style>
 </head>
 <body>
@@ -78,7 +76,7 @@
                 <p style="font-size:12px; color:#999; margin-top:10px; text-align:center;">请联系老师获取访问权限</p>
             </div>
             <div class="modal-footer">
-                <div class="modal-btn confirm" @click="handleLogin" style="width:100%">进入学习</div>
+                <div class="modal-btn confirm" @click="handleLogin">进入学习</div>
             </div>
         </div>
     </div>
@@ -128,6 +126,7 @@
         <div v-if="!loading && filteredBookList.length === 0" class="empty-tip">
             {{ keyword ? '未找到相关内容' : '该分类下暂无内容' }}
         </div>
+        <!-- 家长验证弹窗 -->
         <div class="modal-mask" v-if="showPinModal">
             <div class="modal-box">
                 <div class="modal-title">家长验证</div>
@@ -149,8 +148,8 @@
 
     createApp({
         setup() {
-            // === 配置项 ===
-            const ENV_ID = 'cloud1-4gcnkqkl8e5bcae5'; // 你的环境ID
+            // === 你的配置 ===
+            const ENV_ID = 'cloud1-4gcnkqkl8e5bcae5';
             const PARENT_LOCK_PIN = '3721';
             const CATEGORY_MAP = [
                 { key: 'beginner', name: '初章' }, { key: 'intermediate', name: '中章' }, { key: 'advanced', name: '高章' },
@@ -172,32 +171,31 @@
             const showPinModal = ref(false);
             const inputPin = ref('');
             
-            // === 1. 加载 SDK ===
+            // === 1. 动态加载 SDK (使用官方稳定版 2.9.1) ===
             const loadSdkScript = () => {
                 return new Promise((resolve, reject) => {
                     if (window.cloudbase) return resolve(window.cloudbase);
                     const script = document.createElement('script');
-                    // 使用更稳定的 2.8.2 版本
-                    script.src = "https://imgcache.qq.com/qcloud/cloudbase-js-sdk/2.8.2/cloudbase.full.js";
+                    // ✅ 换回了官方 CDN，确保能加载到 JS 文件
+                    script.src = "https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js";
                     script.onload = () => { console.log("SDK loaded"); resolve(window.cloudbase); };
                     script.onerror = () => reject(new Error("SDK load failed"));
                     document.head.appendChild(script);
                 });
             };
 
-            // === 2. 初始化云开发（含自动修复机制） ===
+            // === 2. 初始化云开发 ===
             const initCloud = async (retryCount = 0) => {
                 try {
                     loading.value = true;
                     const cloudbase = await loadSdkScript();
 
-                    // 初始化
                     const app = cloudbase.init({
                         env: ENV_ID
-                        // 不指定 region，让 SDK 自动判断
+                        // 不指定 region，让它自动判断
                     });
 
-                    // 登录：强制 local 模式
+                    // ✅ 强制 local 模式，解决浏览器 Cookie 拦截
                     const auth = app.auth({ persistence: 'local' });
                     
                     const loginState = await auth.getLoginState();
@@ -207,11 +205,9 @@
                         console.log("匿名登录成功");
                     }
 
-                    // 数据库连接
                     db.value = app.database();
                     console.log("数据库连接成功");
 
-                    // 恢复用户状态
                     const savedUser = localStorage.getItem('web_user');
                     if (savedUser) {
                         currentUser.value = JSON.parse(savedUser);
@@ -225,23 +221,19 @@
                 } catch (e) {
                     console.error("Cloud Error:", e);
                     
-                    // === 自愈机制 ===
-                    // 如果报 unauthenticated 或 credentials not found，说明缓存的 token 坏了
-                    // 我们清理掉 localstorage 里的所有 key，然后重试一次
-                    if (retryCount === 0) {
+                    // ✅ 自愈逻辑：如果报 unauthenticated，说明旧缓存坏了，清理后重试
+                    if (retryCount === 0 && (e.message?.includes('unauthenticated') || e.code === 'unauthenticated')) {
                         console.warn("检测到登录凭证异常，正在清理缓存并重试...");
-                        localStorage.clear(); // 简单粗暴，清理所有脏数据
-                        setTimeout(() => {
-                            initCloud(1); // 重试
-                        }, 500);
+                        localStorage.clear(); // 清理所有本地存储
+                        // 刷新页面是最稳妥的清除内存中错误状态的方法
+                        location.reload(); 
                     } else {
                         loading.value = false;
-                        alert("连接失败，请手动清除浏览器缓存或切换网络后重试。\n错误: " + (e.message || e));
+                        // 不再弹窗骚扰，静默失败（如果是第一次加载）
                     }
                 }
             };
 
-            // === 业务逻辑 ===
             const loadBooks = async () => {
                 if(!db.value) return;
                 loading.value = true;
@@ -284,7 +276,7 @@
                     }
                 } catch (e) {
                     console.error(e);
-                    alert('验证失败: ' + e.message);
+                    alert('验证失败: ' + (e.message || '网络错误'));
                 }
             };
 
