@@ -97,38 +97,38 @@
             const inputPin = ref('');
             
             const initCloud = async () => {
-                try {
-                    if (typeof cloudbase === 'undefined') {
-                        console.error('Cloudbase SDK load failed');
-                        loading.value = false;
-                        return;
-                    }
+    try {
+        if (typeof cloudbase === 'undefined') {
+            console.error('Cloudbase SDK load failed');
+            loading.value = false;
+            return;
+        }
 
-                    const app = cloudbase.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
-                    const auth = app.auth();
+        const app = cloudbase.init({ env: 'cloud1-4gcnkqkl8e5bcae5' });
+        const auth = app.auth();
 
-                    // ✅ 【最终修复】检查并确保匿名登录成功
-                    const loginState = await auth.getLoginState();
-                    if (!loginState) {
-                       await auth.anonymousAuthProvider().signIn();
-                    }
-                    
-                    db.value = app.database();
-                    
-                    const savedUser = localStorage.getItem('web_user');
-                    if (savedUser) {
-                        currentUser.value = JSON.parse(savedUser);
-                        const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
-                        if (savedMode === 'false') isKidMode.value = false;
-                        await loadBooks();
-                    } else {
-                        loading.value = false; 
-                    }
-                } catch (e) {
-                    console.error('Cloud init failed with error:', e);
-                    loading.value = false;
-                }
-            };
+        // 【最终修复】直接进行匿名登录，SDK会自动处理缓存
+        await auth.anonymousAuthProvider().signIn();
+
+        db.value = app.database();
+
+        const savedUser = localStorage.getItem('web_user');
+        if (savedUser) {
+            currentUser.value = JSON.parse(savedUser);
+            const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
+            if (savedMode === 'false') isKidMode.value = false;
+            await loadBooks();
+        } else {
+            loading.value = false;
+        }
+    } catch (e) {
+        console.error('Cloud init failed with error:', e);
+        loading.value = false;
+        // 增加一个用户提示
+        alert('云端服务连接异常，请刷新重试。错误: ' + e.message);
+    }
+};
+
 
             const loadBooks = async () => {
                 if (!currentUser.value) return; 
