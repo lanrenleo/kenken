@@ -130,8 +130,10 @@
                     }
 
                     // 查章节
-                    const res = await db.value.collection('chapters').where({ bookId: bookId.value }).limit(1000).get();
-                    
+const res = await db.value.collection('chapters')
+    .where({ book_id: bookId.value }) // ✅ 正确：改成 book_id (带下划线)
+    .limit(1000)
+    .get();                    
                     // ✅ 核心修复：先判断 res.data 是否存在
                     const list = res.data || [];
                     
