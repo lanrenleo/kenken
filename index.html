@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Web Library</title>
+    
+    <!-- 1. 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- 2. 引入 腾讯云开发 SDK (官方稳定版) -->
+    <script src="https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js"></script>
+    
+    <style>
+        /* === 样式区域 === */
+        :root { --primary-color: #07c160; --bg-color: #f6f6f6; }
+        body { margin: 0; padding: 0; background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { display: none; }
+        * { box-sizing: border-box; }
+        .container { padding: 0; padding-bottom: 50px; }
+        .fixed-header { position: fixed; top: 0; left: 0; width: 100%; z-index: 100; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .header-spacer { height: 100px; width: 100%; }
+        .search-bar { padding: 10px 15px; display: flex; align-items: center; gap: 8px; }
+        .search-input { flex: 1; background-color: #f0f0f0; height: 32px; border-radius: 16px; border: none; padding: 0 15px; font-size: 14px; outline: none; }
+        .action-btn { height: 32px; line-height: 32px; padding: 0 12px; font-size: 13px; border-radius: 16px; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.1); cursor: pointer; white-space: nowrap; }
+        .action-btn:active { opacity: 0.8; transform: scale(0.96); }
+        .action-btn.activate { background-color: #eb1265; }
+        .action-btn.vocab { background-color: #10aeff; }
+        .action-btn.stats { background-color: #FF9500; }
+        .action-btn.mode { min-width: 40px; transition: background 0.3s; }
+        .action-btn.kid-safe { background-color: #07c160; }
+        .action-btn.adult-mode { background-color: #555555; }
+        .category-scroll { white-space: nowrap; overflow-x: auto; background: #fff; padding: 0 15px 10px 15px; }
+        .category-tabs { display: flex; }
+        .tab-item { padding: 7px 5px; margin-right: 20px; font-size: 15px; color: #666; position: relative; transition: all 0.3s; display: inline-block; cursor: pointer; }
+        .tab-item.active { color: #333; font-weight: bold; font-size: 16px; }
+        .tab-item.active::after { content: ''; position: absolute; bottom: 0; left: 5px; right: 5px; height: 3px; background-color: #10aeff; border-radius: 1.5px; }
+        .active-tag-bar { display: flex; align-items: center; padding: 5px 15px; margin: 0 15px 10px; background-color: #e0edff; border-radius: 4px; }
+        .tag-label { font-size: 13px; color: #555; margin-right: 8px; }
+        .tag-chip { background-color: #4361ee; color: white; padding: 3px 10px; border-radius: 10px; font-size: 13px; font-weight: bold; }
+        .clear-tag-btn { margin-left: auto; font-size: 16px; color: #888; padding: 5px; cursor: pointer; }
+        .book-shelf { padding: 0 7.5px; display: flex; flex-wrap: wrap; }
+        .book-container { width: 50%; padding: 0 7.5px; margin-bottom: 15px; cursor: pointer; }
+        .cover-wrapper { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1); background-color: #eee; }
+        .cover-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .cover-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 10px; box-sizing: border-box; text-align: center; color: white; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .cover-image.disabled, .cover-fallback.disabled { filter: grayscale(100%); opacity: 0.6; }
+        .card-title-text { font-size: 14px; color: #333; font-weight: bold; margin-top: 8px; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; height: 40px; }
+        .tags-container-on-cover { position: absolute; bottom: 0; left: 0; right: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 2.5px; max-height: 62.5px; overflow: hidden; padding: 6px 5px 5px; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 100%); width: 100%; }
+        .tag-item { display: inline-block; color: #fff; background-color: rgba(0, 0, 0, 0.35); backdrop-filter: blur(5px); padding: 4px 6px; border-radius: 12px; font-size: 12px; font-weight: 500; border: 0.5px solid rgba(255, 255, 255, 0.1); }
+        .lock-icon { position: absolute; right: 5px; top: 5px; font-size: 16px; background-color: rgba(0,0,0,0.4); color: #fff; width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 4; backdrop-filter: blur(2px); }
+        .loading, .empty-tip { text-align: center; color: #999; padding-top: 50px; font-size: 14px; width: 100%; }
+        .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .modal-box { width: 80%; max-width: 320px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
+        .modal-title { padding: 20px 0 10px; text-align: center; font-size: 17px; font-weight: bold; color: #333; }
+        .modal-content { padding: 10px 20px 20px; }
+        .modal-input { width: 100%; height: 44px; background: #f5f5f5; border-radius: 6px; padding: 0 12px; font-size: 15px; color: #333; border: 1px solid #eee; outline: none; box-sizing: border-box; }
+        .modal-footer { display: flex; border-top: 1px solid #eee; }
+        .modal-btn { flex: 1; height: 50px; line-height: 50px; text-align: center; font-size: 16px; cursor: pointer; }
+        .modal-btn.cancel { color: #666; border-right: 1px solid #eee; }
+        .modal-btn.confirm { color: #07c160; font-weight: bold; }
+        .modal-btn.confirm:active { background-color: #06ad56; }
+        @media screen and (min-width: 500px) {
+            .container { max-width: 800px; margin: 0 auto; background-color: #fff; min-height: 100vh; }
+            .book-container { width: 33.33%; }
+            .fixed-header { max-width: 800px; left: 50%; transform: translateX(-50%); }
+        }
+        @media screen and (min-width: 768px) { .book-container { width: 25%; } }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- 登录拦截 -->
+    <div class="modal-mask" v-if="!currentUser">
+        <div class="modal-box">
+            <div class="modal-title">Web 学员登录</div>
+            <div class="modal-content">
+                <input class="modal-input" v-model="loginCode" placeholder="请输入激活码" type="tel">
+                <p style="font-size:12px; color:#999; margin-top:10px; text-align:center;">请联系老师获取访问权限</p>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-btn confirm" @click="handleLogin">进入学习</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主界面 -->
+    <div v-if="currentUser">
+        <div class="fixed-header">
+            <div class="search-bar">
+                <div class="action-btn activate" @click="logout">退出</div>
+                <div class="action-btn vocab" @click="goToVocabulary">生词</div>
+                <div class="action-btn stats" @click="goToStats">统计</div>
+                <div :class="['action-btn', 'mode', isKidMode ? 'kid-safe' : 'adult-mode']" @click="toggleKidMode">
+                    {{ isKidMode ? '儿童' : '完整' }}
+                </div>
+                <input class="search-input" placeholder="搜索书名..." v-model="keyword" @input="onSearchInput"/>
+            </div>
+            <div class="category-scroll">
+                <div class="category-tabs">
+                    <div v-for="cat in categoryMap" :key="cat.key" :class="['tab-item', currentCategory === cat.key ? 'active' : '']" @click="switchCategory(cat.key)">
+                        {{ cat.name }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="header-spacer"></div>
+        <div class="active-tag-bar" v-if="activeTag">
+            <span class="tag-label">标签:</span>
+            <span class="tag-chip">{{ activeTag }}</span>
+            <div class="clear-tag-btn" @click="clearTagFilter">✕</div>
+        </div>
+        <div class="book-shelf">
+            <div v-for="item in filteredBookList" :key="item._id" class="book-container" @click="onBookTap(item)">
+                <div class="cover-wrapper">
+                    <img v-if="item.coverUrl" class="cover-image" :class="{ disabled: item.hasChapters === false }" :src="item.coverUrl" loading="lazy">
+                    <div v-else class="cover-fallback" :class="{ disabled: item.hasChapters === false }" :style="{ backgroundColor: item.fixedColor || '#ccc' }">
+                        <span>{{ item.title }}</span>
+                    </div>
+                    <div class="lock-icon" v-if="!item.isUnlocked">🔒</div>
+                    <div class="tags-container-on-cover" v-if="item.tags && item.tags.length">
+                        <span class="tag-item" v-for="tag in item.tags" :key="tag" @click.stop="onTagTap(tag)">{{ tag }}</span>
+                    </div>
+                </div>
+                <div class="card-title-text">{{ item.title }}</div>
+            </div>
+        </div>
+        <div v-if="loading" class="loading">加载中...</div>
+        <div v-if="!loading && filteredBookList.length === 0" class="empty-tip">
+            {{ keyword ? '未找到相关内容' : '该分类下暂无内容' }}
+        </div>
+        <!-- 家长验证弹窗 -->
+        <div class="modal-mask" v-if="showPinModal">
+            <div class="modal-box">
+                <div class="modal-title">家长验证</div>
+                <div class="modal-content">
+                    <p style="text-align: center; color: #666; font-size: 13px; margin-bottom: 10px;">请输入密码解锁完整内容</p>
+                    <input class="modal-input" type="password" v-model="inputPin" placeholder="密码" style="text-align:center; letter-spacing: 5px;">
+                </div>
+                <div class="modal-footer">
+                    <div class="modal-btn cancel" @click="showPinModal = false">取消</div>
+                    <div class="modal-btn confirm" @click="verifyPin">确定</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            // === 配置项 ===
+            const ENV_ID = 'cloud1-4gcnkqkl8e5bcae5';
+            const PARENT_LOCK_PIN = '3721';
+            const CATEGORY_MAP = [
+                { key: 'beginner', name: '初章' }, { key: 'intermediate', name: '中章' }, { key: 'advanced', name: '高章' },
+                { key: 'teen', name: '青少' }, { key: 'adult', name: '成人' }, { key: 'literature', name: '文学' },
+                { key: 'tvshow', name: '美剧' }, { key: 'other', name: '其他' }
+            ];
+            
+            // === 状态变量 ===
+            const db = ref(null);
+            const currentUser = ref(null);
+            const loginCode = ref('');
+            const filteredBookList = ref([]);
+            const currentCategory = ref('beginner');
+            const loading = ref(true);
+            const keyword = ref('');
+            const activeTag = ref(null);
+            const isKidMode = ref(true);
+            const showPinModal = ref(false);
+            const inputPin = ref('');
+            
+            // === 初始化云开发 (暴力修复版) ===
+            const initCloud = async () => {
+                try {
+                    loading.value = true;
+                    
+                    // 检查全局变量是否存在
+                    if (typeof cloudbase === 'undefined') {
+                        throw new Error("云开发 SDK 未加载，请检查网络");
+                    }
+
+                    // 1. 初始化
+                    const app = cloudbase.init({
+                        env: ENV_ID,
+                        region: 'ap-shanghai' // 显式指定
+                    });
+
+                    // 2. 核心修复：强制使用 local 模式
+                    const auth = app.auth({ persistence: 'local' });
+                    
+                    // 3. 核心修复：防止旧 Token 干扰，强制登出再登录
+                    // 注意：这会清除掉浏览器残留的错误信息
+                    try {
+                        // 尝试先登出，确保干净状态
+                        await auth.signOut();
+                    } catch(ignore) {}
+
+                    console.log("正在尝试匿名登录...");
+                    await auth.signInAnonymously();
+                    console.log("匿名登录成功！");
+
+                    // 4. 连接数据库
+                    db.value = app.database();
+                    console.log("数据库连接成功");
+
+                    // 5. 恢复用户偏好
+                    const savedUser = localStorage.getItem('web_user');
+                    if (savedUser) {
+                        currentUser.value = JSON.parse(savedUser);
+                        const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
+                        if (savedMode === 'false') isKidMode.value = false;
+                        await loadBooks();
+                    } else {
+                        loading.value = false;
+                    }
+
+                } catch (e) {
+                    console.error("Cloud Init Error:", e);
+                    loading.value = false;
+                    alert("连接失败：" + (e.message || e));
+                }
+            };
+
+            // === 业务逻辑 ===
+            const loadBooks = async () => {
+                if(!db.value) return;
+                loading.value = true;
+                try {
+                    const _ = db.value.command;
+                    let query = db.value.collection('books').where({ category: currentCategory.value });
+                    
+                    if (keyword.value) query = query.where({ title: new db.value.RegExp({ regexp: keyword.value, options: 'i' }) });
+                    if (activeTag.value) query = query.where({ tags: activeTag.value });
+                    if (isKidMode.value) query = query.where({ isAdult: _.neq(true) });
+
+                    const res = await query.limit(50).orderBy('createTime', 'desc').get();
+                    
+                    const books = res.data.map(b => {
+                        const perms = (currentUser.value && currentUser.value.permissions) || [];
+                        const isUnlocked = perms.includes(b._id) || perms.includes('CATEGORY_' + currentCategory.value);
+                        return { ...b, isUnlocked };
+                    });
+                    
+                    books.sort((a, b) => (b.isUnlocked ? 1 : 0) - (a.isUnlocked ? 1 : 0));
+                    filteredBookList.value = books;
+                } catch (err) {
+                    console.error("Load Books Error:", err);
+                } finally {
+                    loading.value = false;
+                }
+            };
+
+            const handleLogin = async () => {
+                if (!loginCode.value) return alert('请输入激活码');
+                if (!db.value) return alert('服务连接中，请稍后再试');
+                try {
+                    const res = await db.value.collection('students').where({ code: loginCode.value }).get();
+                    if (res.data.length > 0) {
+                        currentUser.value = res.data[0];
+                        localStorage.setItem('web_user', JSON.stringify(res.data[0]));
+                        loadBooks();
+                    } else {
+                        alert('激活码无效');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('验证失败');
+                }
+            };
+
+            const logout = () => {
+                if(confirm('确定退出？')) {
+                    localStorage.removeItem('web_user');
+                    currentUser.value = null;
+                    loginCode.value = '';
+                }
+            };
+
+            const switchCategory = (cat) => { if (currentCategory.value !== cat) { currentCategory.value = cat; loadBooks(); } };
+            const onSearchInput = () => { setTimeout(() => { loadBooks(); }, 500); };
+            const onTagTap = (tag) => { activeTag.value = tag; keyword.value = ''; loadBooks(); };
+            const clearTagFilter = () => { activeTag.value = null; loadBooks(); };
+            
+            const toggleKidMode = () => {
+                if (!isKidMode.value) {
+                    isKidMode.value = true;
+                    localStorage.setItem('PREF_IS_KID_MODE', 'true');
+                    loadBooks();
+                } else {
+                    showPinModal.value = true;
+                    inputPin.value = '';
+                }
+            };
+
+            const verifyPin = () => {
+                if (inputPin.value === PARENT_LOCK_PIN) {
+                    showPinModal.value = false;
+                    isKidMode.value = false;
+                    localStorage.setItem('PREF_IS_KID_MODE', 'false');
+                    loadBooks();
+                } else {
+                    alert('密码错误');
+                }
+            };
+
+            const onBookTap = (book) => {
+                if (book.isUnlocked) {
+                    window.location.href = `reader.html?id=${book._id}`;
+                } else {
+                    alert('该课程未解锁');
+                }
+            };
+
+            const goToVocabulary = () => { window.location.href = 'vocabulary.html'; };
+            const goToStats = () => { window.location.href = 'stats.html'; };
+
+            onMounted(() => {
+                initCloud();
+            });
+
+            return {
+                CATEGORY_MAP, currentUser, loginCode, filteredBookList, currentCategory, loading, keyword, activeTag,
+                isKidMode, showPinModal, inputPin, handleLogin, logout, switchCategory, onSearchInput,
+                onTagTap, clearTagFilter, toggleKidMode, verifyPin, onBookTap, goToVocabulary, goToStats
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Web Reader</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* === 样式区域 (保持不变) === */
+        :root { --primary-color: #07c160; --bg-color: #f7f7f7; }
+        body { margin: 0; padding: 0; background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; height: 100vh; }
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { display: none; }
+        .page-container { height: 100vh; display: flex; flex-direction: column; position: relative; transition: background-color 0.3s; }
+        .theme-0 { background-color: #f7f7f7; } .theme-1 { background-color: #f6f1e1; } .theme-2 { background-color: #C7EDCC; } .theme-3 { background-color: #191919; color: #ccc; }
+        .video-panel-wrapper { width: 94%; margin: 10px auto; background-color: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.3); position: relative; flex-shrink: 0; z-index: 10; }
+        .video-container { width: 100%; position: relative; display: flex; flex-direction: column; }
+        .main-media { width: 100%; height: 200px; display: block; object-fit: cover; background: #000; }
+        .cover-art-container { width: 100%; height: 200px; position: relative; background: #000; overflow: hidden; }
+        .cover-art-bg { position: absolute; width: 100%; height: 100%; filter: blur(20px); opacity: 0.6; object-fit: cover; }
+        .cover-art-fg { position: relative; width: 100%; height: 100%; object-fit: contain; z-index: 2; }
+        .video-subtitle-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 10px; overflow-y: auto; z-index: 20; display: flex; flex-wrap: wrap; align-content: flex-start; }
+        .v-note-item { background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); padding: 2px 8px; border-radius: 6px; margin: 0 5px 5px 0; font-size: 13px; display: inline-flex; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .note-en { font-weight: bold; margin-right: 4px; color: #cc0000; } .note-cn { color: #333; }
+        .current-sentence-bar { background: #fff; padding: 12px; width: 100%; border-top: 1px solid #eee; }
+        .theme-3 .current-sentence-bar { background: #222; border-color: #333; color: #ddd; }
+        .content-area { flex: 1; overflow-y: auto; padding: 10px 15px 80px 15px; scroll-behavior: smooth; position: relative; }
+        .sentence-group { padding: 8px 10px; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid transparent; transition: all 0.2s; }
+        .sentence-group.active { background: #f8f3d7; border-left-color: #d4b162; }
+        .theme-3 .sentence-group.active { background: #333; border-left-color: #888; }
+        .en-text { font-size: 18px; line-height: 1.4; margin-bottom: 4px; } .cn-text { font-size: 14px; color: #666; line-height: 1.4; } .theme-3 .cn-text { color: #888; }
+        .keyword { color: #cc0000; font-weight: bold; cursor: pointer; } .theme-3 .keyword { color: #ff6b6b; }
+        .mask-layout.masked { color: transparent !important; background: repeating-linear-gradient(45deg, #eee, #eee 5px, #ddd 5px, #ddd 10px); user-select: none; }
+        .theme-3 .mask-layout.masked { background: repeating-linear-gradient(45deg, #333, #333 5px, #444 5px, #444 10px); }
+        .no-text-mode .en-text, .no-text-mode .cn-text { color: transparent !important; background: rgba(0,0,0,0.1); border-radius: 4px; }
+        .no-text-mode .sentence-group.revealed .en-text, .no-text-mode .sentence-group.revealed .cn-text { color: inherit !important; background: transparent; }
+        .player-bar-placeholder { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #fff; border-top: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .theme-3 .player-bar-placeholder { background: #1f1f1f; border-color: #333; }
+        .playback-controls { display: flex; align-items: center; gap: 20px; }
+        .player-btn { width: 40px; height: 40px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; user-select: none; }
+        .player-btn:active { transform: scale(0.9); }
+        .play-pause-btn { width: 50px; height: 50px; background: #222; color: #fff; font-size: 24px; }
+        .theme-3 .play-pause-btn { background: #ddd; color: #000; } .theme-3 .player-btn { background: #333; color: #fff; }
+        .mode-btn { font-size: 12px; width: auto; padding: 0 10px; border-radius: 20px; }
+        .mode-auto { background: #07c160; color: #fff; } .mode-manual { background: #10aeff; color: #fff; } .mode-silent { background: #333; color: #fff; }
+        .popover { position: fixed; background: #2c2c2e; color: #fff; padding: 10px 15px; border-radius: 8px; font-size: 14px; max-width: 80%; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: auto; }
+        .settings-popup-wrapper { position: fixed; bottom: 70px; left: 5%; width: 90%; background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 200; }
+        .theme-3 .settings-popup-wrapper { background: #222; border: 1px solid #444; }
+        .settings-scroll { display: flex; overflow-x: auto; gap: 15px; padding-bottom: 5px; }
+        .setting-item { text-align: center; flex-shrink: 0; min-width: 50px; cursor: pointer; }
+        .setting-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+        .setting-value { font-size: 14px; font-weight: bold; color: #333; } .theme-3 .setting-value { color: #fff; }
+        .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .theme-3 .loading-mask { background: rgba(0,0,0,0.8); color: #fff; }
+        @media screen and (min-width: 500px) {
+            .page-container { max-width: 800px; margin: 0 auto; background-color: #fff; }
+            .player-bar-placeholder { max-width: 800px; left: 50%; transform: translateX(-50%); }
+            .settings-popup-wrapper { max-width: 700px; left: 50%; transform: translateX(-50%); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div :class="['page-container', 'theme-' + themeIndex]">
+        <!-- 视频/封面区域 -->
+        <div class="video-panel-wrapper" v-if="showVideoMode">
+            <div class="video-container">
+                <video v-if="videoUrl" id="myVideo" class="main-media" :src="videoUrl" controls @timeupdate="onVideoTimeUpdate" @ended="onVideoEnded" @play="onVideoPlay" @pause="onVideoPause"></video>
+                <div v-else class="cover-art-container" @click="togglePlay">
+                    <img class="cover-art-bg" :src="coverUrl">
+                    <img class="cover-art-fg" :src="coverUrl">
+                </div>
+                <div class="video-subtitle-overlay" v-if="currentNoteSegments.length > 0">
+                    <div v-for="(seg, idx) in currentNoteSegments" :key="idx" class="v-note-item" @click.stop="addToVocabulary(seg)">
+                        <span class="note-en" :style="{color: seg.color}">{{ seg.prefix }}</span>
+                        <span class="note-cn">{{ seg.suffix }}</span>
+                    </div>
+                </div>
+                <div class="current-sentence-bar" v-if="useFixedSubtitleBar && sentences[currentIndex]">
+                    <div class="en-text">
+                        <span v-for="(seg, i) in sentences[currentIndex].en_segments" :key="i">
+                            <span v-if="seg.type === 'keyword'" class="keyword" :style="{color: seg.color}" @click.stop="showNote(seg, $event)">{{ seg.text }}</span>
+                            <span v-else>{{ seg.text }}</span>
+                        </span>
+                    </div>
+                    <div class="cn-text" v-if="showCN && !maskMode">{{ sentences[currentIndex].cn_text }}</div>
+                    <div class="cn-text mask-layout" :class="{masked: !revealedMap[currentIndex]}" v-if="maskMode" @click="toggleReveal(currentIndex)">{{ sentences[currentIndex].cn_text }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 列表 -->
+        <div class="content-area" :class="[fontSizes[currentFontSizeIndex].class, hideAllText ? 'no-text-mode' : '', isBold ? 'bold-keywords' : '']" @scroll="onScroll" ref="contentArea">
+            <div v-for="(item, index) in sentences" :key="index" :id="'sent-' + index"
+                 :class="['sentence-group', currentIndex === index && (!showVideoMode || !useFixedSubtitleBar) ? 'active' : '', revealedMap[index] ? 'revealed' : '']">
+                <div class="en-text" @click="playSentence(index)">
+                    <span v-for="(seg, i) in item.en_segments" :key="i">
+                        <span v-if="seg.type === 'keyword'" class="keyword" :style="{color: seg.color}" @click.stop="showNote(seg, $event)">{{ seg.text }}</span>
+                        <span v-else>{{ seg.text }}</span>
+                    </span>
+                </div>
+                <div class="cn-text" v-if="showCN && !maskMode">{{ item.cn_text }}</div>
+                <div class="cn-text mask-layout" :class="{masked: !revealedMap[index]}" v-if="maskMode" @click="toggleReveal(index)">{{ item.cn_text }}</div>
+            </div>
+        </div>
+
+        <!-- 弹窗控件 -->
+        <div class="popover" v-if="showPop" :style="popStyle" @click="addToVocabulary(currentNoteObj)">{{ popNote }}<div style="font-size:10px; margin-top:4px; opacity:0.7">(点击收藏)</div></div>
+        <div class="settings-popup-wrapper" v-if="showSettingsPopup">
+            <div class="settings-scroll">
+                <div class="setting-item" @click="toggleVideoMode" v-if="videoUrl || coverUrl"><div class="setting-label">视频</div><div class="setting-value">{{ showVideoMode ? '开启' : '关闭' }}</div></div>
+                <div class="setting-item" @click="cyclePlaybackRate"><div class="setting-label">倍速</div><div class="setting-value">{{ playbackRates[currentRateIndex] }}x</div></div>
+                <div class="setting-item" @click="cyclePlayMode"><div class="setting-label">模式</div><div class="setting-value">{{ playModes[playMode] }}</div></div>
+                <div class="setting-item" @click="cycleDisplayMode"><div class="setting-label">显示</div><div class="setting-value">{{ displayModes[displayMode] }}</div></div>
+                <div class="setting-item" @click="cycleTheme"><div class="setting-label">主题</div><div class="setting-value">{{ themeNames[themeIndex] }}</div></div>
+                <div class="setting-item" @click="cycleFontSize"><div class="setting-label">字号</div><div class="setting-value">{{ fontSizes[currentFontSizeIndex].name }}</div></div>
+            </div>
+        </div>
+        <div class="player-bar-placeholder">
+            <div class="player-btn" @click="showSettingsPopup = !showSettingsPopup">☰</div>
+            <div class="playback-controls">
+                <div class="player-btn" @click="playPrev">ᐊ</div>
+                <div class="player-btn play-pause-btn" @click="togglePlay">{{ isPlaying ? '❚❚' : '▶' }}</div>
+                <div class="player-btn" @click="playNext">ᐅ</div>
+            </div>
+            <div :class="['player-btn', 'mode-btn', readingModeType===0?'mode-auto':(readingModeType===1?'mode-manual':'mode-silent')]" @click="toggleReadingMode">{{ readingModeType===0 ? '自动' : (readingModeType===1 ? '手动' : '静默') }}</div>
+        </div>
+        <div class="loading-mask" v-if="isLoading">加载中...</div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted, onUnmounted, nextTick } = Vue;
+
+    createApp({
+        setup() {
+            const db = ref(null);
+            const audioObj = ref(null);
+            const isLoading = ref(true);
+            const bookId = ref('');
+            const chapterId = ref('');
+            const sentences = ref([]);
+            const currentIndex = ref(-1);
+            const isPlaying = ref(false);
+            const audioUrl = ref('');
+            const videoUrl = ref('');
+            const coverUrl = ref('');
+            const themeIndex = ref(0);
+            const themeNames = ['默认', '羊皮纸', '护眼绿', '暗黑'];
+            const showVideoMode = ref(false);
+            const useFixedSubtitleBar = ref(true);
+            const playbackRates = [0.5, 0.8, 1.0, 1.2, 1.5, 2.0];
+            const currentRateIndex = ref(2);
+            const playMode = ref(0); 
+            const playModes = ['顺序', '单句×3', '跟读'];
+            const displayMode = ref(0);
+            const displayModes = ['双语', '纯英', '遮盖', '无字'];
+            const showCN = ref(true);
+            const maskMode = ref(false);
+            const hideAllText = ref(false);
+            const revealedMap = ref({});
+            const readingModeType = ref(1); 
+            const fontSizes = [{name:'小',class:'fs-s'}, {name:'中',class:'fs-m'}, {name:'大',class:'fs-l'}, {name:'特',class:'fs-xl'}];
+            const currentFontSizeIndex = ref(1);
+            const isBold = ref(false);
+            const showSettingsPopup = ref(false);
+            const currentNoteSegments = ref([]);
+            const showPop = ref(false);
+            const popNote = ref('');
+            const popStyle = ref({});
+            const currentNoteObj = ref({});
+            let sessionDuration = 0;
+            let sessionWords = 0;
+            let statTimer = null;
+
+            // 1. 加载 SDK
+            const loadSdkScript = () => {
+                return new Promise((resolve, reject) => {
+                    if (window.cloudbase) return resolve(window.cloudbase);
+                    const script = document.createElement('script');
+                    script.src = "https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js";
+                    script.onload = () => { console.log("SDK loaded"); resolve(window.cloudbase); };
+                    script.onerror = () => reject(new Error("SDK load failed"));
+                    document.head.appendChild(script);
+                });
+            };
+
+            // 2. 初始化
+            const initCloud = async () => {
+                const params = new URLSearchParams(window.location.search);
+                bookId.value = params.get('bookId');
+                chapterId.value = params.get('chapterId');
+                
+                if (!chapterId.value) return alert('缺少参数');
+                if (!localStorage.getItem('web_user')) { alert('请先登录'); window.location.href = 'index.html'; return; }
+
+                audioObj.value = new Audio();
+                audioObj.value.addEventListener('ended', onAudioEnded);
+                audioObj.value.addEventListener('timeupdate', onAudioTimeUpdate);
+                
+                try {
+                    const cloudbase = await loadSdkScript();
+                    const app = cloudbase.init({ env: 'cloud1-4gcnkqkl8e5bcae5', region: 'ap-shanghai' });
+                    const auth = app.auth({ persistence: 'local' });
+                    if (!auth.hasLoginState()) await auth.signInAnonymously();
+                    db.value = app.database();
+                    
+                    restoreSettings();
+                    loadChapter();
+                    startStatTimer();
+                } catch (e) {
+                    console.error(e);
+                    alert('连接已断开，正在返回首页重新连接...');
+                    window.location.href = 'index.html';
+                }
+            };
+
+            const loadChapter = async () => {
+                const tcb = db.value.app;
+                const res = await tcb.callFunction({ name: 'adminHelper', data: { action: 'getChapter', chapterId: chapterId.value } });
+                if (res.result && res.result.success) {
+                    const data = res.result.data;
+                    document.title = data.title;
+                    sentences.value = data.content;
+                    if (data.audio_url && data.audio_url.startsWith('http')) audioUrl.value = data.audio_url;
+                    if (data.video_url && data.video_url.startsWith('http')) videoUrl.value = data.video_url;
+                    if (data.cover_url && data.cover_url.startsWith('http')) coverUrl.value = data.cover_url;
+                    const savedIdx = localStorage.getItem(`prog_${bookId.value}_${chapterId.value}`);
+                    if (savedIdx) { currentIndex.value = parseInt(savedIdx); scrollToCenter(currentIndex.value); } 
+                    else { currentIndex.value = 0; }
+                    updateCurrentSentenceData(currentIndex.value);
+                    isLoading.value = false;
+                } else { alert(res.result.msg || '无法加载章节'); }
+            };
+
+            const togglePlay = () => {
+                if (showVideoMode.value && videoUrl.value) {
+                    const v = document.getElementById('myVideo');
+                    if (v.paused) v.play(); else v.pause();
+                    isPlaying.value = !v.paused;
+                } else {
+                    if (audioObj.value.paused) {
+                        if (!audioObj.value.src) playAt(currentIndex.value >=0 ? currentIndex.value : 0);
+                        else audioObj.value.play();
+                    } else { audioObj.value.pause(); }
+                    isPlaying.value = !audioObj.value.paused;
+                }
+            };
+
+            const playAt = (index, autoScroll = true) => {
+                if (index < 0 || index >= sentences.value.length) return;
+                const sent = sentences.value[index];
+                const startTime = sent.start;
+                updateCurrentSentenceData(index);
+                if (autoScroll) scrollToCenter(index);
+                if (showVideoMode.value && videoUrl.value) {
+                    const v = document.getElementById('myVideo');
+                    v.currentTime = startTime;
+                    v.play();
+                    isPlaying.value = true;
+                } else if (audioUrl.value) {
+                    audioObj.value.src = audioUrl.value;
+                    audioObj.value.currentTime = startTime;
+                    audioObj.value.playbackRate = playbackRates[currentRateIndex.value];
+                    audioObj.value.play();
+                    isPlaying.value = true;
+                }
+            };
+
+            const playPrev = () => playAt(currentIndex.value - 1);
+            const playNext = () => playAt(currentIndex.value + 1);
+            const playSentence = (index) => playAt(index, false);
+            const onAudioTimeUpdate = () => checkTime(audioObj.value.currentTime);
+            const onVideoTimeUpdate = (e) => checkTime(e.target.currentTime);
+            
+            const checkTime = (time) => {
+                const sent = sentences.value[currentIndex.value];
+                if (sent && time >= sent.end - 0.2) {
+                    if (playMode.value === 1) { // 单句循环模拟
+                        if (showVideoMode.value) document.getElementById('myVideo').currentTime = sent.start;
+                        else audioObj.value.currentTime = sent.start;
+                        return;
+                    }
+                }
+                const nextIdx = sentences.value.findIndex(s => time >= s.start && time < s.end);
+                if (nextIdx !== -1 && nextIdx !== currentIndex.value) {
+                    updateCurrentSentenceData(nextIdx);
+                    if (readingModeType.value === 0) scrollToCenter(nextIdx);
+                    localStorage.setItem(`prog_${bookId.value}_${chapterId.value}`, nextIdx);
+                }
+            };
+
+            const onAudioEnded = () => { if (playMode.value === 0) playNext(); };
+            const onVideoEnded = () => isPlaying.value = false;
+            const onVideoPlay = () => isPlaying.value = true;
+            const onVideoPause = () => isPlaying.value = false;
+
+            const updateCurrentSentenceData = (index) => {
+                currentIndex.value = index;
+                const sent = sentences.value[index];
+                if (!sent) return;
+                const words = sent.en_segments ? sent.en_segments.map(s=>s.text).join(' ').split(/\s+/).length : 0;
+                sessionWords += words;
+                const notes = [];
+                if (sent.en_segments) {
+                    sent.en_segments.forEach(seg => {
+                        if (seg.type === 'keyword' && seg.note) {
+                            let parts = seg.note.split(/[:：]/);
+                            notes.push({ prefix: parts[0], suffix: parts[1] || '', color: seg.color || '#f00', text: seg.text, fullNote: seg.note });
+                        }
+                    });
+                }
+                currentNoteSegments.value = notes;
+            };
+
+            const scrollToCenter = (index) => {
+                nextTick(() => {
+                    const el = document.getElementById('sent-' + index);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            };
+
+            const toggleReveal = (index) => revealedMap.value[index] = !revealedMap.value[index];
+            const showNote = (seg, e) => {
+                popNote.value = seg.note; showPop.value = true; currentNoteObj.value = seg;
+                const rect = e.target.getBoundingClientRect();
+                popStyle.value = { top: (rect.top - 50) + 'px', left: '20px' };
+                if (isPlaying.value) togglePlay();
+            };
+
+            const addToVocabulary = async (seg) => {
+                if (!confirm(`收藏生词：${seg.text} ?`)) return;
+                try {
+                    const tcb = db.value.app;
+                    await tcb.callFunction({ name: 'adminHelper', data: { action: 'addVocabulary', word: seg.text, note: seg.fullNote || seg.note, bookId: bookId.value } });
+                    alert('已收藏'); showPop.value = false;
+                } catch(e) {
+                    db.value.collection('vocabulary').add({ english: seg.text, chinese: seg.fullNote || seg.note, bookId: bookId.value, createTime: new Date() }).then(() => { alert('收藏成功'); showPop.value = false; });
+                }
+            };
+
+            const saveSettings = () => { localStorage.setItem('web_reader_settings', JSON.stringify({ themeIndex: themeIndex.value, displayMode: displayMode.value, playMode: playMode.value, readingModeType: readingModeType.value, rateIndex: currentRateIndex.value })); };
+            const restoreSettings = () => {
+                const s = JSON.parse(localStorage.getItem('web_reader_settings'));
+                if (s) { themeIndex.value = s.themeIndex || 0; displayMode.value = s.displayMode || 0; cycleDisplayMode(true); playMode.value = s.playMode || 0; readingModeType.value = s.readingModeType || 1; currentRateIndex.value = s.rateIndex || 2; }
+            };
+            const cycleTheme = () => { themeIndex.value = (themeIndex.value + 1) % 4; saveSettings(); };
+            const cyclePlayMode = () => { playMode.value = (playMode.value + 1) % 3; saveSettings(); };
+            const cyclePlaybackRate = () => { currentRateIndex.value = (currentRateIndex.value + 1) % playbackRates.length; if(audioObj.value) audioObj.value.playbackRate = playbackRates[currentRateIndex.value]; saveSettings(); };
+            const cycleDisplayMode = (noSave) => {
+                if (!noSave) displayMode.value = (displayMode.value + 1) % 4;
+                const m = displayMode.value;
+                showCN.value = (m === 0 || m === 2 || m === 3); maskMode.value = (m === 2); hideAllText.value = (m === 3); revealedMap.value = {};
+                if (!noSave) saveSettings();
+            };
+            const cycleFontSize = () => { currentFontSizeIndex.value = (currentFontSizeIndex.value + 1) % 4; };
+            const toggleVideoMode = () => { showVideoMode.value = !showVideoMode.value; };
+            const toggleReadingMode = () => { readingModeType.value = (readingModeType.value + 1) % 3; saveSettings(); };
+
+            const startStatTimer = () => { statTimer = setInterval(() => { if (isPlaying.value) sessionDuration++; }, 1000); };
+            const uploadStats = () => {
+                if (sessionDuration > 0 || sessionWords > 0) {
+                    const tcb = db.value.app;
+                    tcb.callFunction({ name: 'adminHelper', data: { action: 'uploadStudyStats', duration: sessionDuration, words: sessionWords } });
+                }
+            };
+
+            onUnmounted(() => { uploadStats(); if (audioObj.value) audioObj.value.pause(); });
+            onMounted(() => { initCloud(); });
+
+            return {
+                isLoading, showVideoMode, videoUrl, coverUrl, currentNoteSegments, useFixedSubtitleBar, sentences, currentIndex, revealedMap, showCN, maskMode, hideAllText,
+                showPop, popNote, popStyle, currentNoteObj, isPlaying, themeIndex, themeNames, fontSizes, currentFontSizeIndex,
+                showSettingsPopup, displayMode, displayModes, playMode, playModes, currentRateIndex, playbackRates, readingModeType, isBold,
+                onVideoTimeUpdate, onVideoEnded, onVideoPlay, onVideoPause, playSentence, playPrev, playNext, togglePlay, showNote, addToVocabulary, toggleReveal,
+                toggleVideoMode, cyclePlaybackRate, cyclePlayMode, cycleDisplayMode, cycleTheme, cycleFontSize, toggleReadingMode, onScroll: () => {}
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
