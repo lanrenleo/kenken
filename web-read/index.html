@@ -6,8 +6,6 @@
     <title>Web Library</title>
     <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- 引入 腾讯云 SDK -->
-    <script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js"></script>
     
     <style>
         /* === 全局基础样式 === */
@@ -145,10 +143,7 @@
 
     createApp({
         setup() {
-            // === 👇👇👇 在这里修改家长密码 👇👇👇 ===
-            const PARENT_LOCK_PIN = '3721'; // 把 3721 改成你想要的密码，保留引号
-            // =====================================
-
+            const PARENT_LOCK_PIN = '3721';
             const CATEGORY_MAP = [
                 { key: 'beginner', name: '初章' }, { key: 'intermediate', name: '中章' },
                 { key: 'advanced', name: '高章' }, { key: 'teen', name: '青少' },
@@ -169,13 +164,40 @@
             const showPinModal = ref(false);
             const inputPin = ref('');
             
+            // === 强制下载 SDK 的函数 ===
+            const forceLoadSDK = () => {
+                return new Promise((resolve) => {
+                    if (window.tcb) return resolve(); // 如果有了，直接成功
+                    console.log('检测到缺少 SDK，正在强制下载...');
+                    const script = document.createElement('script');
+                    script.src = "https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js";
+                    script.onload = () => {
+                        console.log('SDK 强制下载成功！');
+                        resolve();
+                    };
+                    script.onerror = () => {
+                        console.error('SDK 下载失败');
+                        // 备用 CDN，防止腾讯域名被墙
+                        const backup = document.createElement('script');
+                        backup.src = "https://unpkg.com/tcb-js-sdk@1.17.0/dist/tcb.js";
+                        backup.onload = resolve;
+                        document.body.appendChild(backup);
+                    };
+                    document.body.appendChild(script);
+                });
+            };
+
             const initCloud = async () => {
-                // 安全检查
+                // 先尝试强制下载 SDK
+                await forceLoadSDK();
+
+                // 安全检查（双重保险）
                 if (!window.tcb) {
                     console.log('正在等待腾讯云SDK加载...');
                     setTimeout(initCloud, 500); 
                     return;
                 }
+
                 try {
                     const app = new window.tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
                     const auth = app.auth();
