@@ -257,9 +257,10 @@ const initCloud = async () => {
         const cloudbase = await loadSdkScript();
 
         // 2. 初始化
-        const app = cloudbase.init({
-            env: 'cloud1-4gcnkqkl8e5bcae5' 
-        });
+       const app = cloudbase.init({
+    env: 'cloud1-4gcnkqkl8e5bcae5',
+    region: 'ap-shanghai' // ⚠️ 大部分云开发环境都在上海，建议显式加上
+});
 
         // 3. 登录逻辑 (核心修改点)
         const auth = app.auth({ persistence: 'local' }); // 👈 必须加这个！
