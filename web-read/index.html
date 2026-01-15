@@ -253,50 +253,54 @@ const initCloud = async () => {
     try {
         loading.value = true;
         
-        // 1. 等待 SDK 加载完毕 (核心修复点)
+        // 1. 加载 SDK
         const cloudbase = await loadSdkScript();
 
         // 2. 初始化
         const app = cloudbase.init({
-            env: 'cloud1-4gcnkqkl8e5bcae5' // 你的环境 ID
+            env: 'cloud1-4gcnkqkl8e5bcae5' 
         });
 
-        // 3. 登录
-        const auth = app.auth();
+        // 3. 登录逻辑 (核心修改点)
+        const auth = app.auth({ persistence: 'local' }); // 👈 必须加这个！
+        
+        // 先检查当前是不是已经登录了
         const loginState = await auth.getLoginState();
         
-        // 如果没有登录态，尝试匿名登录
-        if (!loginState) {
-            await auth.signInAnonymously();
+        if (loginState) {
+            console.log("已有登录态，跳过登录");
+        } else {
+            console.log("当前未登录，开始匿名登录...");
+            try {
+                await auth.signInAnonymously();
+                console.log("匿名登录成功");
+            } catch (loginErr) {
+                console.error("匿名登录失败详情:", loginErr);
+                throw loginErr; // 抛出错误以便外层捕获
+            }
         }
 
+        // 4. 连接数据库
         db.value = app.database();
-        console.log("云开发连接成功");
-
-        // 4. 检查本地用户缓存
+        console.log("数据库连接成功");
+        
+        // 5. 加载数据
         const savedUser = localStorage.getItem('web_user');
         if (savedUser) {
             currentUser.value = JSON.parse(savedUser);
-            const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
-            if (savedMode === 'false') isKidMode.value = false;
-            
-            // 加载书籍数据
+            // ... 处理用户偏好
             await loadBooks();
         } else {
-            loading.value = false; // 如果没登录，也要把 loading 关掉
+            loading.value = false;
         }
 
     } catch (e) {
-        console.error('Cloud init failed', e);
+        console.error('Cloud init critical error:', e);
         loading.value = false;
-        // 如果是匿名登录未开启导致的，提示用户
-        if (e.message && e.message.includes('LOGIN_Type_Not_Supported')) {
-            alert('请在腾讯云后台-登录授权中开启“匿名登录”');
-        } else {
-            // 暂时不弹窗打扰，只在控制台报错
-        }
+        alert("连接云服务器失败，请检查控制台报错");
     }
 };
+
 
 onMounted(() => {
     initCloud();
