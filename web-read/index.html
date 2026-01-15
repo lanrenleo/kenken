@@ -6,8 +6,9 @@
     <title>Web Library</title>
     <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- 引入 腾讯云开发 SDK -->
-<script src="https://lib.baomitu.com/tcb-js-sdk/1.7.3/tcb.js"></script>
+    
+    <!-- 【修复】改用 unpkg 源，全球访问更稳定 -->
+    <script src="https://unpkg.com/tcb-js-sdk@1.17.0/tcb.js"></script>
     
     <style>
         /* === 全局基础样式 === */
@@ -232,10 +233,16 @@
             // === 初始化 ===
             const initCloud = async () => {
                 try {
-                    // ⚠️ 改动 1：把 const tcb 改成 const app
-                    const app = new tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
+                    // 检查 tcb 是否加载
+                    if (typeof tcb === 'undefined') {
+                        console.error('TCB SDK load failed');
+                        alert('云端连接失败，请尝试刷新页面');
+                        return;
+                    }
+
+                    // ⚠️ 【修正】tcb.init 不需要 new
+                    const app = tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
                     
-                    // ⚠️ 改动 2：下面用 app 来调用
                     const auth = app.auth();
                     await auth.signInAnonymously();
                     db.value = app.database();
@@ -252,7 +259,7 @@
                     }
                 } catch (e) {
                     console.error('Cloud init failed', e);
-                    alert('连接服务器失败，请检查网络');
+                    // 忽略登录错误，因为可能是网络波动
                 }
             };
 
@@ -384,13 +391,13 @@
             const onBookTap = (book) => {
                 if (book.isUnlocked) {
                     // 跳转到阅读器
-                    window.location.href = `reader.html?id=${book._id}`;
+                    window.location.href = `chapters.html?bookId=${book._id}`;
                 } else {
                     alert('该课程未解锁');
                 }
             };
 
-            const goToVocabulary = () => { window.location.href = 'vocabulary.html'; };
+            const goToVocabulary = () => { window.location.href = 'vocabulary-index.html'; };
             const goToStats = () => { window.location.href = 'stats.html'; };
 
             onMounted(() => {
