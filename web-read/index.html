@@ -1,154 +1,9 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Web Library</title>
-    <!-- 引入 Vue 3 -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    
-    <style>
-        /* === 样式区域 === */
-        :root { --primary-color: #07c160; --bg-color: #f6f6f6; }
-        body { margin: 0; padding: 0; background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        ::-webkit-scrollbar { display: none; }
-        * { box-sizing: border-box; }
-        .container { padding: 0; padding-bottom: 50px; }
-        .fixed-header { position: fixed; top: 0; left: 0; width: 100%; z-index: 100; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .header-spacer { height: 100px; width: 100%; }
-        .search-bar { padding: 10px 15px; display: flex; align-items: center; gap: 8px; }
-        .search-input { flex: 1; background-color: #f0f0f0; height: 32px; border-radius: 16px; border: none; padding: 0 15px; font-size: 14px; outline: none; }
-        .action-btn { height: 32px; line-height: 32px; padding: 0 12px; font-size: 13px; border-radius: 16px; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.1); cursor: pointer; white-space: nowrap; }
-        .action-btn:active { opacity: 0.8; transform: scale(0.96); }
-        .action-btn.activate { background-color: #eb1265; }
-        .action-btn.vocab { background-color: #10aeff; }
-        .action-btn.stats { background-color: #FF9500; }
-        .action-btn.mode { min-width: 40px; transition: background 0.3s; }
-        .action-btn.kid-safe { background-color: #07c160; }
-        .action-btn.adult-mode { background-color: #555555; }
-        .category-scroll { white-space: nowrap; overflow-x: auto; background: #fff; padding: 0 15px 10px 15px; }
-        .category-tabs { display: flex; }
-        .tab-item { padding: 7px 5px; margin-right: 20px; font-size: 15px; color: #666; position: relative; transition: all 0.3s; display: inline-block; cursor: pointer; }
-        .tab-item.active { color: #333; font-weight: bold; font-size: 16px; }
-        .tab-item.active::after { content: ''; position: absolute; bottom: 0; left: 5px; right: 5px; height: 3px; background-color: #10aeff; border-radius: 1.5px; }
-        .active-tag-bar { display: flex; align-items: center; padding: 5px 15px; margin: 0 15px 10px; background-color: #e0edff; border-radius: 4px; }
-        .tag-label { font-size: 13px; color: #555; margin-right: 8px; }
-        .tag-chip { background-color: #4361ee; color: white; padding: 3px 10px; border-radius: 10px; font-size: 13px; font-weight: bold; }
-        .clear-tag-btn { margin-left: auto; font-size: 16px; color: #888; padding: 5px; cursor: pointer; }
-        .book-shelf { padding: 0 7.5px; display: flex; flex-wrap: wrap; }
-        .book-container { width: 50%; padding: 0 7.5px; margin-bottom: 15px; cursor: pointer; }
-        .cover-wrapper { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1); background-color: #eee; }
-        .cover-image { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .cover-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 10px; box-sizing: border-box; text-align: center; color: white; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-        .cover-image.disabled, .cover-fallback.disabled { filter: grayscale(100%); opacity: 0.6; }
-        .card-title-text { font-size: 14px; color: #333; font-weight: bold; margin-top: 8px; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; height: 40px; }
-        .tags-container-on-cover { position: absolute; bottom: 0; left: 0; right: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 2.5px; max-height: 62.5px; overflow: hidden; padding: 6px 5px 5px; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 100%); width: 100%; }
-        .tag-item { display: inline-block; color: #fff; background-color: rgba(0, 0, 0, 0.35); backdrop-filter: blur(5px); padding: 4px 6px; border-radius: 12px; font-size: 12px; font-weight: 500; border: 0.5px solid rgba(255, 255, 255, 0.1); }
-        .lock-icon { position: absolute; right: 5px; top: 5px; font-size: 16px; background-color: rgba(0,0,0,0.4); color: #fff; width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 4; backdrop-filter: blur(2px); }
-        .loading, .empty-tip { text-align: center; color: #999; padding-top: 50px; font-size: 14px; width: 100%; }
-        .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-        .modal-box { width: 80%; max-width: 320px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
-        .modal-title { padding: 20px 0 10px; text-align: center; font-size: 17px; font-weight: bold; color: #333; }
-        .modal-content { padding: 10px 20px 20px; }
-        .modal-input { width: 100%; height: 44px; background: #f5f5f5; border-radius: 6px; padding: 0 12px; font-size: 15px; color: #333; border: 1px solid #eee; outline: none; box-sizing: border-box; }
-        .modal-footer { display: flex; border-top: 1px solid #eee; }
-        .modal-btn { flex: 1; height: 50px; line-height: 50px; text-align: center; font-size: 16px; cursor: pointer; }
-        .modal-btn.cancel { color: #666; border-right: 1px solid #eee; }
-        .modal-btn.confirm { color: #07c160; font-weight: bold; }
-        .modal-btn.confirm:active { background-color: #06ad56; }
-        @media screen and (min-width: 500px) {
-            .container { max-width: 800px; margin: 0 auto; background-color: #fff; min-height: 100vh; }
-            .book-container { width: 33.33%; }
-            .fixed-header { max-width: 800px; left: 50%; transform: translateX(-50%); }
-        }
-        @media screen and (min-width: 768px) { .book-container { width: 25%; } }
-    </style>
-</head>
-<body>
-
-<div id="app">
-    <!-- 登录拦截 -->
-    <div class="modal-mask" v-if="!currentUser">
-        <div class="modal-box">
-            <div class="modal-title">Web 学员登录</div>
-            <div class="modal-content">
-                <input class="modal-input" v-model="loginCode" placeholder="请输入激活码" type="tel">
-                <p style="font-size:12px; color:#999; margin-top:10px; text-align:center;">请联系老师获取访问权限</p>
-            </div>
-            <div class="modal-footer">
-                <div class="modal-btn confirm" @click="handleLogin">进入学习</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 主界面 -->
-    <div v-if="currentUser">
-        <div class="fixed-header">
-            <div class="search-bar">
-                <div class="action-btn activate" @click="logout">退出</div>
-                <div class="action-btn vocab" @click="goToVocabulary">生词</div>
-                <div class="action-btn stats" @click="goToStats">统计</div>
-                <div :class="['action-btn', 'mode', isKidMode ? 'kid-safe' : 'adult-mode']" @click="toggleKidMode">
-                    {{ isKidMode ? '儿童' : '完整' }}
-                </div>
-                <input class="search-input" placeholder="搜索书名..." v-model="keyword" @input="onSearchInput"/>
-            </div>
-            <div class="category-scroll">
-                <div class="category-tabs">
-                    <div v-for="cat in categoryMap" :key="cat.key" :class="['tab-item', currentCategory === cat.key ? 'active' : '']" @click="switchCategory(cat.key)">
-                        {{ cat.name }}
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="header-spacer"></div>
-        <div class="active-tag-bar" v-if="activeTag">
-            <span class="tag-label">标签:</span>
-            <span class="tag-chip">{{ activeTag }}</span>
-            <div class="clear-tag-btn" @click="clearTagFilter">✕</div>
-        </div>
-        <div class="book-shelf">
-            <div v-for="item in filteredBookList" :key="item._id" class="book-container" @click="onBookTap(item)">
-                <div class="cover-wrapper">
-                    <img v-if="item.coverUrl" class="cover-image" :class="{ disabled: item.hasChapters === false }" :src="item.coverUrl" loading="lazy">
-                    <div v-else class="cover-fallback" :class="{ disabled: item.hasChapters === false }" :style="{ backgroundColor: item.fixedColor || '#ccc' }">
-                        <span>{{ item.title }}</span>
-                    </div>
-                    <div class="lock-icon" v-if="!item.isUnlocked">🔒</div>
-                    <div class="tags-container-on-cover" v-if="item.tags && item.tags.length">
-                        <span class="tag-item" v-for="tag in item.tags" :key="tag" @click.stop="onTagTap(tag)">{{ tag }}</span>
-                    </div>
-                </div>
-                <div class="card-title-text">{{ item.title }}</div>
-            </div>
-        </div>
-        <div v-if="loading" class="loading">加载中...</div>
-        <div v-if="!loading && filteredBookList.length === 0" class="empty-tip">
-            {{ keyword ? '未找到相关内容' : '该分类下暂无内容' }}
-        </div>
-        <!-- 家长验证弹窗 -->
-        <div class="modal-mask" v-if="showPinModal">
-            <div class="modal-box">
-                <div class="modal-title">家长验证</div>
-                <div class="modal-content">
-                    <p style="text-align: center; color: #666; font-size: 13px; margin-bottom: 10px;">请输入密码解锁完整内容</p>
-                    <input class="modal-input" type="password" v-model="inputPin" placeholder="密码" style="text-align:center; letter-spacing: 5px;">
-                </div>
-                <div class="modal-footer">
-                    <div class="modal-btn cancel" @click="showPinModal = false">取消</div>
-                    <div class="modal-btn confirm" @click="verifyPin">确定</div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
     const { createApp, ref, onMounted } = Vue;
 
     createApp({
         setup() {
-            // === 你的配置 ===
+            // === 配置项 ===
             const ENV_ID = 'cloud1-4gcnkqkl8e5bcae5';
             const PARENT_LOCK_PIN = '3721';
             const CATEGORY_MAP = [
@@ -161,7 +16,6 @@
             const db = ref(null);
             const currentUser = ref(null);
             const loginCode = ref('');
-            const allBooks = ref([]);
             const filteredBookList = ref([]);
             const currentCategory = ref('beginner');
             const loading = ref(true);
@@ -171,12 +25,12 @@
             const showPinModal = ref(false);
             const inputPin = ref('');
             
-            // === 1. 动态加载 SDK (使用官方稳定版 2.9.1) ===
+            // === 1. 加载 SDK ===
             const loadSdkScript = () => {
                 return new Promise((resolve, reject) => {
                     if (window.cloudbase) return resolve(window.cloudbase);
                     const script = document.createElement('script');
-                    // ✅ 换回了官方 CDN，确保能加载到 JS 文件
+                    // 使用官方最新版
                     script.src = "https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js";
                     script.onload = () => { console.log("SDK loaded"); resolve(window.cloudbase); };
                     script.onerror = () => reject(new Error("SDK load failed"));
@@ -184,56 +38,56 @@
                 });
             };
 
-            // === 2. 初始化云开发 ===
-            const initCloud = async (retryCount = 0) => {
+            // === 2. 初始化云开发（暴力修复版） ===
+            const initCloud = async () => {
                 try {
                     loading.value = true;
+                    
+                    // 【核心修复】为了防止旧缓存导致的死循环，先清空本地存储
+                    // 只要网页能正常运行一次，以后这行可以注释掉
+                    // 但现在调试阶段，请务必保留！
+                    if (!window.hasCleaned) {
+                        localStorage.clear(); 
+                        window.hasCleaned = true;
+                        console.log("已强制清理旧缓存");
+                    }
+
                     const cloudbase = await loadSdkScript();
 
                     const app = cloudbase.init({
-                        env: ENV_ID
-                        // 不指定 region，让它自动判断
+                        env: ENV_ID,
+                        region: 'ap-shanghai' // 显式指定上海地域
                     });
 
-                    // ✅ 强制 local 模式，解决浏览器 Cookie 拦截
                     const auth = app.auth({ persistence: 'local' });
                     
-                    const loginState = await auth.getLoginState();
-                    if (!loginState) {
-                        console.log("尝试匿名登录...");
-                        await auth.signInAnonymously();
-                        console.log("匿名登录成功");
-                    }
+                    // 【强制登出再登录】确保凭证是最新生成的
+                    await auth.signOut(); 
+                    console.log("正在尝试新的匿名登录...");
+                    
+                    await auth.signInAnonymously();
+                    console.log("匿名登录成功！权限已获取。");
 
+                    // 连接数据库
                     db.value = app.database();
                     console.log("数据库连接成功");
 
-                    const savedUser = localStorage.getItem('web_user');
-                    if (savedUser) {
-                        currentUser.value = JSON.parse(savedUser);
-                        const savedMode = localStorage.getItem('PREF_IS_KID_MODE');
-                        if (savedMode === 'false') isKidMode.value = false;
-                        await loadBooks();
-                    } else {
-                        loading.value = false;
-                    }
+                    // 恢复用户偏好（因为刚才clear了，需要重新判断）
+                    // 这里简化处理，登录成功后直接加载数据
+                    await loadBooks();
 
                 } catch (e) {
-                    console.error("Cloud Error:", e);
+                    console.error("Cloud Init Error:", e);
+                    // 解析错误对象
+                    const errCode = e.error || e.code || 'unknown';
+                    const errMsg = e.message || e.error_description || JSON.stringify(e);
                     
-                    // ✅ 自愈逻辑：如果报 unauthenticated，说明旧缓存坏了，清理后重试
-                    if (retryCount === 0 && (e.message?.includes('unauthenticated') || e.code === 'unauthenticated')) {
-                        console.warn("检测到登录凭证异常，正在清理缓存并重试...");
-                        localStorage.clear(); // 清理所有本地存储
-                        // 刷新页面是最稳妥的清除内存中错误状态的方法
-                        location.reload(); 
-                    } else {
-                        loading.value = false;
-                        // 不再弹窗骚扰，静默失败（如果是第一次加载）
-                    }
+                    loading.value = false;
+                    alert(`连接失败: [${errCode}] ${errMsg}\n请检查云开发控制台 [设置->登录授权] 中的 [匿名登录] 是否开启。`);
                 }
             };
 
+            // === 业务逻辑 ===
             const loadBooks = async () => {
                 if(!db.value) return;
                 loading.value = true;
@@ -248,7 +102,8 @@
                     const res = await query.limit(50).orderBy('createTime', 'desc').get();
                     
                     const books = res.data.map(b => {
-                        const perms = currentUser.value.permissions || [];
+                        // 因为刚才清了缓存，currentUser可能为空，做个防御
+                        const perms = (currentUser.value && currentUser.value.permissions) || [];
                         const isUnlocked = perms.includes(b._id) || perms.includes('CATEGORY_' + currentCategory.value);
                         return { ...b, isUnlocked };
                     });
@@ -256,7 +111,7 @@
                     books.sort((a, b) => (b.isUnlocked ? 1 : 0) - (a.isUnlocked ? 1 : 0));
                     filteredBookList.value = books;
                 } catch (err) {
-                    console.error(err);
+                    console.error("Load Books Error:", err);
                 } finally {
                     loading.value = false;
                 }
@@ -269,6 +124,7 @@
                     const res = await db.value.collection('students').where({ code: loginCode.value }).get();
                     if (res.data.length > 0) {
                         currentUser.value = res.data[0];
+                        // 重新写入缓存
                         localStorage.setItem('web_user', JSON.stringify(res.data[0]));
                         loadBooks();
                     } else {
@@ -276,7 +132,7 @@
                     }
                 } catch (e) {
                     console.error(e);
-                    alert('验证失败: ' + (e.message || '网络错误'));
+                    alert('验证失败');
                 }
             };
 
@@ -338,5 +194,3 @@
         }
     }).mount('#app');
 </script>
-</body>
-</html>
