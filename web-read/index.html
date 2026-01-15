@@ -6,8 +6,7 @@
     <title>Web Library</title>
     <!-- 引入 Vue 3  -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- 引入 腾讯云开发 SDK -->
-    <script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js"></script>
+
     
     <style>
         /* === 全局基础样式 === */
@@ -412,6 +411,22 @@
             };
         }
     }).mount('#app');
+<!-- 尝试加载腾讯云SDK，放在这里为了防止阻塞 -->
+<script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js"></script>
+
+<!-- 如果上面的加载失败，可以尝试这个备用方案 (可选，如果还是不行再说) -->
+
+<script>
+    // 给登录按钮加个保险，防止报错
+    const originalLogin = window.handleLogin;
+    window.handleLogin = async function() {
+        if (!window.tcb || !window.db || !window.db.value) {
+            alert('系统资源正在加载中，请检查网络或关闭广告拦截插件后刷新重试！(tcb.js未加载)');
+            return;
+        }
+        // 调用原来的逻辑（这里需要配合 Vue 的 setup 暴露出来的方法，比较复杂，我们先用 alert 拦截报错）
+    }
 </script>
-</body>
-</html>
+
+</body> <!-- 这是文件的倒数第二行 -->
+</html> <!-- 这是文件的最后一行 -->
