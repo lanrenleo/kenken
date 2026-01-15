@@ -7,8 +7,10 @@
     <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     
-    <!-- 【修复】改用 unpkg 源，全球访问更稳定 -->
-    <script src="https://unpkg.com/tcb-js-sdk@1.17.0/tcb.js"></script>
+<!-- 优先加载腾讯官方CDN（浏览器专用） -->
+<script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js"></script>
+<!-- 如果上面失败，尝试加载 npm 镜像的浏览器版 -->
+<script src="https://unpkg.com/tcb-js-sdk@1.17.0/dist/tcb.js"></script>
     
     <style>
         /* === 全局基础样式 === */
