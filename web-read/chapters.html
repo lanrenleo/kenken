@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>章节列表</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js"></script>
+    
+    <style>
+        /* === 全局基础样式 (与 index.html 保持一致) === */
+        :root { --primary-color: #07c160; --bg-color: #f6f6f6; }
+        body { margin: 0; padding: 0; background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; }
+        
+        .container { padding: 10px; min-height: 100vh; padding-bottom: 30px; }
+
+        /* === 筛选状态提示栏 === */
+        .filter-bar { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 15px; margin-bottom: 10px; border-radius: 6px; font-size: 14px; color: #07c160; font-weight: bold; box-shadow: 0 1px 5px rgba(0,0,0,0.05); }
+        .clear-btn { font-size: 12px; color: #999; font-weight: normal; cursor: pointer; }
+
+        /* === 样式 A：带封面的大卡片 === */
+        .chapter-card { background: #fff; border-radius: 8px; margin-bottom: 12px; display: flex; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); transition: transform 0.1s; cursor: pointer; overflow: hidden; }
+        .chapter-card:active { transform: scale(0.98); }
+
+        .card-cover-box { width: 100px; height: 100px; flex-shrink: 0; background: #eee; position: relative; }
+        .card-cover { width: 100%; height: 100%; object-fit: cover; display: block; }
+        
+        .play-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.5); color: #fff; width: 30px; height: 30px; border-radius: 50%; text-align: center; line-height: 30px; font-size: 14px; backdrop-filter: blur(2px); z-index: 2; }
+
+        /* 封面底部的进度条 */
+        .cover-bottom-layer { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0)); display: flex; flex-direction: column; justify-content: flex-end; z-index: 5; padding-top: 10px; }
+        .cover-prog-text { font-size: 9px; color: #fff; padding: 0 4px 2px 4px; text-align: right; font-weight: bold; text-shadow: 0 1px 1px rgba(0,0,0,0.8); }
+        .cover-prog-track { width: 100%; height: 3px; background: rgba(255,255,255,0.3); }
+        .cover-prog-fill { height: 100%; background-color: #07c160; box-shadow: 0 0 2px rgba(7, 193, 96, 0.8); }
+
+        /* 右侧信息区域 */
+        .card-info { flex: 1; padding: 8px 10px 6px 10px; display: flex; flex-direction: column; height: 100px; min-width: 0; }
+        .card-title { font-size: 15px; font-weight: bold; color: #333; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 0; }
+        
+        .spacer { flex: 1; }
+
+        /* 标签 */
+        .tags-static-box { width: 100%; height: 50px; display: flex; flex-wrap: wrap; align-content: flex-start; overflow: hidden; }
+        .tag-item { display: inline-block; font-size: 13px; color: #07c160; background: rgba(7, 193, 96, 0.08); padding: 4px 6px; border-radius: 4px; margin-right: 8px; margin-top: 5px; line-height: 1; cursor: pointer; }
+        .tag-item.active { background: #07c160; color: #fff; font-weight: bold; }
+
+        /* === 样式 B：纯文字列表 === */
+        .chapter-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; font-size: 16px; color: #333; border-bottom: 1px solid #eee; background: #fff; cursor: pointer; }
+        .simple-title { display: flex; align-items: flex-start; flex: 1; padding-right: 10px; }
+        .simple-title-col { display: flex; flex-direction: column; flex: 1; }
+        .idx { color: #999; margin-right: 8px; font-size: 14px; margin-top: 2px; }
+        .arrow { color: #ccc; font-size: 20px; }
+
+        /* 列表模式进度条 */
+        .list-progress-row { display: flex; align-items: center; margin-top: 5px; }
+        .list-progress-track { width: 70px; height: 4px; background-color: #eee; border-radius: 2px; overflow: hidden; margin-right: 6px; }
+        .list-progress-fill { height: 100%; background-color: #07c160; border-radius: 2px; }
+        .list-progress-txt { font-size: 10px; color: #999; }
+
+        .loading, .empty-tip { text-align: center; color: #999; padding-top: 50px; font-size: 14px; width: 100%; }
+
+        /* 平板适配 */
+        @media screen and (min-width: 500px) {
+            .container { max-width: 800px; margin: 0 auto; }
+            .card-cover-box { width: 80px; height: 80px; }
+            .card-info { height: 80px; }
+            .card-title { font-size: 14px; }
+            .tag-item { font-size: 10px; padding: 2px 5px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="container">
+        
+        <!-- 筛选栏 -->
+        <div class="filter-bar" v-if="activeTag" @click="clearTag">
+            <span>当前筛选：{{ activeTag }}</span>
+            <span class="clear-btn">✕ 清除</span>
+        </div>
+
+        <div class="chapter-list-container">
+            <div v-if="filteredList.length > 0">
+                <div v-for="(item, index) in filteredList" :key="item._id">
+                    
+                    <!-- 样式 A：带封面的大卡片 -->
+                    <div v-if="item.cover_url" class="chapter-card" @click="goToReader(item._id)">
+                        <div class="card-cover-box">
+                            <img class="card-cover" :src="item.cover_url" loading="lazy">
+                            <div class="play-overlay">▶</div>
+                            
+                            <!-- 进度条 -->
+                            <div class="cover-bottom-layer" v-if="item.hasStarted">
+                                <span class="cover-prog-text">{{ item.progressText }}</span>
+                                <div class="cover-prog-track">
+                                    <div class="cover-prog-fill" :style="{ width: item.progressPercent + '%' }"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-info">
+                            <div class="card-title">{{ item.title }}</div>
+                            <div class="spacer"></div>
+                            
+                            <!-- 标签 -->
+                            <div class="tags-static-box" v-if="item.tags && item.tags.length">
+                                <span v-for="tag in item.tags" :key="tag" 
+                                      :class="['tag-item', activeTag === tag ? 'active' : '']"
+                                      @click.stop="onTagTap(tag)">
+                                    {{ tag }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 样式 B：纯文字列表 -->
+                    <div v-else class="chapter-item" @click="goToReader(item._id)">
+                        <div class="simple-title">
+                            <span class="idx">{{ index + 1 }}.</span>
+                            <div class="simple-title-col">
+                                <span class="t-text">{{ item.title }}</span>
+                                
+                                <div class="list-progress-row" v-if="item.hasStarted">
+                                    <div class="list-progress-track">
+                                        <div class="list-progress-fill" :style="{ width: item.progressPercent + '%' }"></div>
+                                    </div>
+                                    <span class="list-progress-txt">{{ item.progressText }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="arrow">›</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-else class="empty-tip">
+                {{ loading ? '' : (activeTag ? '该标签下暂无内容' : '暂无章节') }}
+            </div>
+        </div>
+
+        <div v-if="loading" class="loading">加载中...</div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const db = ref(null);
+            const bookId = ref('');
+            const bookCategory = ref('audiobook');
+            const loading = ref(true);
+            const fullChapterList = ref([]);
+            const activeTag = ref('');
+            
+            // 进度条 Key (需与 Reader 页面保持一致)
+            const PROGRESS_KEY = 'reader_progress_v1';
+
+            // === 初始化 ===
+            const initCloud = async () => {
+                // 获取 URL 参数中的 bookId
+                const urlParams = new URLSearchParams(window.location.search);
+                const id = urlParams.get('bookId');
+                
+                if (!id) {
+                    alert('参数错误：缺少 Book ID');
+                    return;
+                }
+                bookId.value = id;
+
+                try {
+                    // ⚠️ 这里填你的环境ID
+                    const tcb = new tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' });
+                    const auth = tcb.auth();
+                    await auth.signInAnonymously();
+                    db.value = tcb.database();
+                    
+                    // 加载书籍详情(获取分类) & 章节列表
+                    loadBookInfoAndChapters();
+                } catch (e) {
+                    console.error('Cloud init failed', e);
+                    loading.value = false;
+                }
+            };
+
+            // === 加载逻辑 ===
+            const loadBookInfoAndChapters = async () => {
+                loading.value = true;
+                try {
+                    // 1. 获取书籍分类
+                    const bookRes = await db.value.collection('books').doc(bookId.value).get();
+                    if(bookRes.data && bookRes.data.length > 0) {
+                       bookCategory.value = bookRes.data[0].category || 'audiobook';
+                       document.title = bookRes.data[0].title || '章节列表';
+                    }
+
+                    // 2. 调用云函数获取章节列表 (复用 adminHelper)
+                    // 注意：Web端调用云函数，name 依然是 adminHelper
+                    const tcb = db.value.app; // 获取 app 实例用于 callFunction
+                    const res = await tcb.callFunction({
+                        name: 'adminHelper',
+                        data: {
+                            action: 'getChapterList',
+                            bookId: bookId.value
+                        }
+                    });
+
+                    if (res.result && res.result.success) {
+                        let list = res.result.data;
+                        
+                        // 3. 排序 (逻辑与小程序一致)
+                        list.sort((a, b) => {
+                            const titleA = a.title || '';
+                            const titleB = b.title || '';
+                            const cat = bookCategory.value;
+                            
+                            // localeCompare numeric: true 可以正确排序 "Chapter 1", "Chapter 2", "Chapter 10"
+                            if (cat === 'podcast' || cat === 'youtube') {
+                                return titleB.localeCompare(titleA, undefined, { numeric: true });
+                            } else {
+                                return titleA.localeCompare(titleB, undefined, { numeric: true });
+                            }
+                        });
+
+                        updateListWithProgress(list);
+                    } else {
+                        console.error('API Error', res);
+                        alert('加载失败');
+                    }
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    loading.value = false;
+                }
+            };
+
+            // === 进度处理 ===
+            const updateListWithProgress = (list) => {
+                // 读取本地缓存
+                const progressJson = localStorage.getItem(PROGRESS_KEY);
+                const progressMap = progressJson ? JSON.parse(progressJson) : {};
+                
+                const processedList = list.map(item => {
+                    const key = `${bookId.value}_${item._id}`;
+                    const currentIndex = progressMap[key] || 0;
+                    
+                    let progressPercent = 0;
+                    let progressText = '';
+                    
+                    if (currentIndex > 0) {
+                        if (item.sentence_count && item.sentence_count > 0) {
+                            progressPercent = Math.min(100, Math.floor((currentIndex / item.sentence_count) * 100));
+                            progressText = `${progressPercent}%`;
+                        } else {
+                            progressText = `第 ${currentIndex} 句`;
+                            progressPercent = 10;
+                        }
+                    }
+
+                    return {
+                        ...item,
+                        progressPercent,
+                        progressText,
+                        hasStarted: currentIndex > 0
+                    };
+                });
+
+                fullChapterList.value = processedList;
+            };
+
+            // === 交互 ===
+            const onTagTap = (tag) => {
+                if (activeTag.value === tag) {
+                    activeTag.value = ''; // 取消
+                } else {
+                    activeTag.value = tag; // 选中
+                }
+            };
+
+            const clearTag = () => {
+                activeTag.value = '';
+            };
+
+            const goToReader = (chapterId) => {
+                // 网页跳转
+                window.location.href = `reader.html?chapterId=${chapterId}&bookId=${bookId.value}`;
+            };
+
+            // === 计算属性：当前展示的列表 ===
+            const filteredList = computed(() => {
+                if (!activeTag.value) {
+                    return fullChapterList.value;
+                }
+                return fullChapterList.value.filter(item => {
+                    return item.tags && item.tags.includes(activeTag.value);
+                });
+            });
+
+            onMounted(() => {
+                initCloud();
+            });
+
+            return {
+                loading, filteredList, activeTag,
+                onTagTap, clearTag, goToReader
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

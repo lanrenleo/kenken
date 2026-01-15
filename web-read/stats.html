@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>学习统计</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js"></script>
+    
+    <style>
+        :root { --primary-color: #07c160; --bg-color: #f6f6f6; --blue-color: #10aeff; }
+        body { margin: 0; padding: 0; background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; }
+        
+        .container { padding: 15px; max-width: 800px; margin: 0 auto; }
+
+        /* === Tab 切换 === */
+        .period-tabs { display: flex; background: #fff; border-radius: 8px; padding: 4px; margin-bottom: 15px; box-shadow: 0 1px 5px rgba(0,0,0,0.03); }
+        .tab-item { flex: 1; text-align: center; font-size: 14px; color: #666; padding: 6px 0; border-radius: 6px; transition: all 0.2s; cursor: pointer; }
+        .tab-item.active { background: #e8f5e9; color: var(--primary-color); font-weight: bold; }
+
+        /* === 标题 === */
+        .section-title { font-size: 15px; font-weight: bold; color: #333; margin: 0 0 10px 5px; }
+
+        /* === 今日卡片 === */
+        .today-card { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; margin-bottom: 20px; }
+        .today-item { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .divider { width: 1px; height: 30px; background: #eee; }
+        .today-icon { font-size: 24px; }
+        .today-info { display: flex; flex-direction: column; }
+        .t-val { font-size: 15px; font-weight: bold; color: #333; }
+        .t-label { font-size: 11px; color: #999; }
+
+        /* === 总览卡片 === */
+        .overview-card { background: #fff; border-radius: 12px; padding: 15px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .stat-row { display: flex; justify-content: space-around; padding: 5px 0; }
+        .stat-item { display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .stat-num { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 3px; height: 20px; display: flex; align-items: flex-end; line-height: 1; }
+        .stat-num.highlight { color: #FF9500; font-size: 20px; }
+        .stat-label { font-size: 11px; color: #999; }
+        .divider-h { height: 1px; background-color: #f0f0f0; margin: 10px 15px; }
+
+        /* === 图表区域 === */
+        .chart-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 5px; }
+        .chart-toggles { display: flex; background: #e0e0e0; border-radius: 12px; padding: 2px; }
+        .toggle-btn { padding: 3px 10px; font-size: 11px; color: #666; border-radius: 10px; transition: all 0.2s; cursor: pointer; }
+        .toggle-btn.active { background: #fff; color: #333; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        .chart-box { background: #fff; border-radius: 12px; padding: 20px 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); height: 180px; margin-bottom: 20px; }
+        .chart-scroll { width: 100%; height: 100%; overflow-x: auto; overflow-y: hidden; white-space: nowrap; }
+        .chart-bars { display: inline-flex; height: 100%; align-items: flex-end; padding-right: 20px; }
+        
+        .bar-group { display: inline-flex; flex-direction: column; align-items: center; width: 30px; margin: 0 5px; vertical-align: bottom; }
+        .bar { width: 8px; border-radius: 4px; min-height: 3px; transition: height 0.5s ease, background 0.3s ease; }
+        .bar-label { font-size: 10px; color: #999; margin-top: 5px; }
+        .bar-val { font-size: 9px; color: #666; margin-bottom: 2px; }
+
+        /* 暗黑模式 */
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #111; }
+            .period-tabs, .today-card, .overview-card, .chart-box { background: #1f1f1f; box-shadow: none; }
+            .tab-item { color: #888; } 
+            .tab-item.active { background: #1b3a24; color: #07c160; }
+            .section-title, .t-val, .stat-num { color: #eee; }
+            .divider, .divider-h { background: #333; }
+            .chart-toggles { background: #333; }
+            .toggle-btn { color: #888; }
+            .toggle-btn.active { background: #555; color: #fff; }
+            .bar-group .bar[style*="#eee"] { background: #333 !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="container">
+        
+        <!-- Tab -->
+        <div class="period-tabs">
+            <div :class="['tab-item', currentTab==='day'?'active':'']" @click="switchTab('day')">日</div>
+            <div :class="['tab-item', currentTab==='month'?'active':'']" @click="switchTab('month')">月</div>
+            <div :class="['tab-item', currentTab==='year'?'active':'']" @click="switchTab('year')">年</div>
+        </div>
+
+        <!-- 今日统计 -->
+        <div class="section-title">{{ periodTitle }}</div>
+        <div class="today-card">
+            <div class="today-item">
+                <span class="today-icon" style="color:#07c160">🕒</span>
+                <div class="today-info">
+                    <span class="t-val">{{ stats.currentDurationStr }}</span>
+                    <span class="t-label">{{ periodDurationLabel }}</span>
+                </div>
+            </div>
+            <div class="divider"></div>
+            <div class="today-item">
+                <span class="today-icon" style="color:#10aeff">📖</span>
+                <div class="today-info">
+                    <span class="t-val">{{ stats.currentWords }}</span>
+                    <span class="t-label">{{ periodWordLabel }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史总览 -->
+        <div class="section-title">历史统计</div>
+        <div class="overview-card">
+            <div class="stat-row">
+                <div class="stat-item">
+                    <span class="stat-num">{{ stats.daysCount }}</span>
+                    <span class="stat-label">总天数</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">{{ stats.totalDurationStr }}</span>
+                    <span class="stat-label">总时长</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">{{ stats.totalWords }}</span>
+                    <span class="stat-label">总阅读量</span>
+                </div>
+            </div>
+            <div class="divider-h"></div>
+            <div class="stat-row">
+                <div class="stat-item">
+                    <span class="stat-num highlight">{{ stats.maxStreak }}</span>
+                    <span class="stat-label">最高连续(天)</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">{{ stats.avgDurationStr }}</span>
+                    <span class="stat-label">平均每天</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表 -->
+        <div class="chart-header-row">
+            <div class="section-title" style="margin-bottom:0; font-size:14px;">
+                {{ chartTitlePrefix }}趋势
+                <span style="font-size:12px; font-weight:normal; color:#999;"> ({{ chartMetric==='duration'?'时长':'词数' }})</span>
+            </div>
+            <div class="chart-toggles">
+                <div :class="['toggle-btn', chartMetric==='duration'?'active':'']" @click="switchChartMetric('duration')">时长</div>
+                <div :class="['toggle-btn', chartMetric==='words'?'active':'']" @click="switchChartMetric('words')">阅读量</div>
+            </div>
+        </div>
+
+        <div class="chart-box">
+            <div class="chart-scroll" ref="chartScroll">
+                <div class="chart-bars">
+                    <div v-for="(item, idx) in chartData" :key="idx" :id="'chart-item-'+idx" class="bar-group">
+                        <div class="bar-val" v-if="item.val > 0">{{ item.displayVal }}</div>
+                        <div class="bar" 
+                             :style="{
+                                height: (item.val / maxChartValue * 100) + 'px', 
+                                background: item.val > 0 ? (chartMetric==='duration'?'#07c160':'#10aeff') : '#eee'
+                             }">
+                        </div>
+                        <div class="bar-label">{{ item.label }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+    // === 工具函数 ===
+    function formatCount(num) {
+        if (!num) return 0;
+        if (num >= 10000) return (num / 10000).toFixed(1) + '万';
+        return num;
+    }
+
+    function formatDuration(seconds) {
+        if (!seconds || seconds < 0) return '0分钟';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}分钟`;
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        if (h > 99) return `${h}小时`;
+        if (m === 0) return `${h}小时`;
+        return `${h}小时${m}分`;
+    }
+
+    createApp({
+        setup() {
+            const db = ref(null);
+            const currentTab = ref('day');
+            const chartMetric = ref('duration');
+            
+            // 数据显示
+            const stats = ref({
+                totalDurationStr: '0分钟',
+                totalWords: 0,
+                daysCount: 0,
+                maxStreak: 0,        
+                avgDurationStr: '0分钟', 
+                currentDurationStr: '0分钟', 
+                currentWords: 0
+            });
+            
+            const rawHistory = ref([]);
+            const chartData = ref([]);
+            const maxChartValue = ref(1);
+
+            // 动态标题
+            const periodTitle = computed(() => {
+                if(currentTab.value === 'month') return '本月统计';
+                if(currentTab.value === 'year') return '本年统计';
+                return '今日实时';
+            });
+            const periodDurationLabel = computed(() => currentTab.value==='day' ? '今日时长' : (currentTab.value==='month'?'本月时长':'本年时长'));
+            const periodWordLabel = computed(() => currentTab.value==='day' ? '今日阅读量' : (currentTab.value==='month'?'本月阅读量':'本年阅读量'));
+            const chartTitlePrefix = computed(() => currentTab.value==='day' ? '近14天' : (currentTab.value==='month'?'近12个月':'近年'));
+
+            // === 初始化 ===
+            const initCloud = async () => {
+                try {
+                    const tcb = new tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); // ⚠️ 填环境ID
+                    const auth = tcb.auth();
+                    await auth.signInAnonymously();
+                    db.value = tcb.database();
+                    loadStats();
+                } catch (e) {
+                    console.error(e);
+                    alert('加载失败');
+                }
+            };
+
+            const loadStats = async () => {
+                const tcb = db.value.app;
+                try {
+                    const res = await tcb.callFunction({
+                        name: 'adminHelper',
+                        data: { action: 'getUserStats', period: currentTab.value }
+                    });
+
+                    if (res.result && res.result.success) {
+                        const data = res.result.data;
+                        const history = data.history || [];
+                        const currentStats = data.currentStats || { duration: 0, words: 0 };
+
+                        stats.value = {
+                            totalDurationStr: formatDuration(data.totalDuration),
+                            totalWords: formatCount(data.totalWords), 
+                            daysCount: data.daysCount,
+                            maxStreak: data.maxStreak, 
+                            avgDurationStr: formatDuration(data.avgDuration),
+                            currentDurationStr: formatDuration(currentStats.duration),
+                            currentWords: formatCount(currentStats.words) 
+                        };
+                        
+                        rawHistory.value = history;
+                        renderChart();
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            };
+
+            const renderChart = () => {
+                const history = rawHistory.value;
+                const metric = chartMetric.value;
+                
+                let list = [];
+                let maxVal = 0;
+                
+                history.forEach(item => {
+                    let rawVal = 0;      
+                    let displayVal = ''; 
+
+                    if (metric === 'duration') {
+                        const minutes = Math.floor(item.duration / 60);
+                        rawVal = minutes; 
+                        if (minutes < 60) {
+                            displayVal = minutes > 0 ? `${minutes}m` : '';
+                        } else {
+                            const hours = (minutes / 60).toFixed(1); 
+                            displayVal = `${parseFloat(hours)}h`; 
+                        }
+                    } else {
+                        rawVal = item.words;
+                        displayVal = item.words > 0 ? formatCount(item.words) : ''; 
+                    }
+
+                    if (rawVal > maxVal) maxVal = rawVal;
+
+                    // X轴
+                    let label = '';
+                    const dateParts = item._id.split('-'); 
+                    if (currentTab.value === 'day') {
+                        label = dateParts[2] ? (parseInt(dateParts[2]) + '日') : item._id;
+                    } else if (currentTab.value === 'month') {
+                        label = dateParts[1] ? (parseInt(dateParts[1]) + '月') : item._id;
+                    } else {
+                        label = dateParts[0] + '年';
+                    }
+
+                    list.push({ label, val: rawVal, displayVal });
+                });
+
+                chartData.value = list;
+                maxChartValue.value = maxVal > 0 ? maxVal : 1;
+
+                // 自动滚动到最右
+                nextTick(() => {
+                    const lastIdx = list.length - 1;
+                    const el = document.getElementById('chart-item-' + lastIdx);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'end' });
+                });
+            };
+
+            const switchTab = (tab) => {
+                if (currentTab.value === tab) return;
+                currentTab.value = tab;
+                loadStats();
+            };
+
+            const switchChartMetric = (metric) => {
+                if (chartMetric.value === metric) return;
+                chartMetric.value = metric;
+                renderChart();
+            };
+
+            onMounted(() => {
+                initCloud();
+            });
+
+            return {
+                currentTab, chartMetric, stats, chartData, maxChartValue,
+                periodTitle, periodDurationLabel, periodWordLabel, chartTitlePrefix,
+                switchTab, switchChartMetric
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
