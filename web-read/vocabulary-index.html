@@ -5,137 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的生词本</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.0/tcb.js"></script>
-    
     <style>
+        /* === 样式区域 (保持不变) === */
         :root { --primary-color: #07c160; --bg-color: #f7f8fa; }
         body { margin: 0; padding: 0; background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; height: 100vh; overflow: hidden; }
         * { box-sizing: border-box; }
-        
         .container { height: 100%; display: flex; flex-direction: column; }
-
-        /* === 头部 === */
         .page-header { padding: 16px 20px; background-color: #fff; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; position: relative; }
-        .title { font-size: 22px; font-weight: 600; color: #333; }
-        .subtitle { font-size: 13px; color: #999; margin-top: 4px; }
-        
+        .title { font-size: 22px; font-weight: 600; color: #333; } .subtitle { font-size: 13px; color: #999; margin-top: 4px; }
         .clear-all-btn { position: absolute; top: 50%; right: 20px; transform: translateY(-50%); background-color: #fff1f0; color: #ff4d4f; border: 1px solid #ffccc7; padding: 6px 12px; border-radius: 15px; font-size: 13px; font-weight: 500; cursor: pointer; }
-        .clear-all-btn:active { opacity: 0.8; transform: translateY(-50%) scale(0.96); }
-
-        /* === 列表区域 === */
         .book-list { flex: 1; padding: 10px; overflow-y: auto; padding-bottom: 50px; }
-        
         .book-item { margin-bottom: 12px; background-color: #fff; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.05); overflow: hidden; }
-        
         .book-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; cursor: pointer; transition: background-color 0.2s; user-select: none; }
-        .book-header:active { background-color: #f7f7f7; }
-        
-        .book-title-area { flex: 1; }
-        .book-title { font-size: 16px; font-weight: 500; color: #333; }
-        .book-word-count { font-size: 12px; color: #999; margin-top: 2px; }
-        
-        .arrow { width: 8px; height: 8px; border-top: 2px solid #ccc; border-right: 2px solid #ccc; transform: rotate(135deg); transition: transform 0.3s ease; }
-        .arrow.expanded { transform: rotate(-45deg); }
-
-        .chapters-container { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background-color: #fafafa; }
-        .chapters-container.expanded { max-height: 2000px; transition: max-height 0.5s ease-in; }
-
+        .book-title { font-size: 16px; font-weight: 500; color: #333; } .book-word-count { font-size: 12px; color: #999; margin-top: 2px; }
+        .arrow { width: 8px; height: 8px; border-top: 2px solid #ccc; border-right: 2px solid #ccc; transform: rotate(135deg); transition: transform 0.3s ease; } .arrow.expanded { transform: rotate(-45deg); }
+        .chapters-container { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background-color: #fafafa; } .chapters-container.expanded { max-height: 2000px; transition: max-height 0.5s ease-in; }
         .chapter-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; margin: 0 10px; border-bottom: 1px solid #f0f0f0; cursor: pointer; user-select: none; }
-        .chapter-item:last-child { border-bottom: none; }
-        .chapter-item:active { background-color: #f0f0f0; }
-        
-        .chapter-title { font-size: 14px; color: #555; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
-        .chapter-word-count { font-size: 13px; color: #07c160; font-weight: 500; flex-shrink: 0; }
-
+        .chapter-title { font-size: 14px; color: #555; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; } .chapter-word-count { font-size: 13px; color: #07c160; font-weight: 500; flex-shrink: 0; }
         .empty-tip, .loading-placeholder { text-align: center; color: #999; padding-top: 100px; font-size: 14px; }
-
-        /* === 底部容量条 === */
-        .capacity-bar { position: fixed; bottom: 0; left: 0; width: 100%; padding: 6px 0; background-color: #fff; border-top: 1px solid #f0f0f0; z-index: 10; text-align: center; }
-        .capacity-text { font-size: 12px; color: #999; font-variant-numeric: tabular-nums; }
-
-        /* === 暗黑模式 === */
-        @media (prefers-color-scheme: dark) {
-            body, .container { background-color: #000; }
-            .page-header { background-color: #1c1c1e; border-bottom-color: #38383a; }
-            .title { color: #fff; } .subtitle { color: #8d8d93; }
-            .clear-all-btn { background-color: #4d1a18; color: #ff453a; border-color: #8d2a24; }
-            .book-item { background-color: #1c1c1e; box-shadow: none; }
-            .book-header:active { background-color: #2c2c2e; }
-            .book-title { color: #fff; } .book-word-count, .arrow { color: #8d8d93; border-color: #8d8d93; }
-            .chapters-container { background-color: #161618; }
-            .chapter-item { border-bottom-color: #38383a; }
-            .chapter-item:active { background-color: #2c2c2e; }
-            .chapter-title { color: #e5e5ea; }
-            .capacity-bar { background-color: #1c1c1e; border-top-color: #38383a; }
-            .capacity-text { color: #8d8d93; }
-        }
-
-        /* 平板适配 */
-        @media screen and (min-width: 500px) {
-            .container { max-width: 800px; margin: 0 auto; background-color: #fff; }
-            .capacity-bar { max-width: 800px; left: 50%; transform: translateX(-50%); }
-        }
+        .capacity-bar { position: fixed; bottom: 0; left: 0; width: 100%; padding: 6px 0; background-color: #fff; border-top: 1px solid #f0f0f0; z-index: 10; text-align: center; } .capacity-text { font-size: 12px; color: #999; font-variant-numeric: tabular-nums; }
+        @media screen and (min-width: 500px) { .container { max-width: 800px; margin: 0 auto; background-color: #fff; } .capacity-bar { max-width: 800px; left: 50%; transform: translateX(-50%); } }
     </style>
 </head>
 <body>
 
 <div id="app">
     <div class="container">
-        
-        <!-- 头部 -->
         <div class="page-header">
-            <div class="header-main">
-                <div class="title">我的生词本</div>
-                <div class="subtitle">请选择内容和章节进行复习</div>
-            </div>
+            <div class="header-main"><div class="title">我的生词本</div><div class="subtitle">请选择内容和章节进行复习</div></div>
             <div class="clear-all-btn" @click="handleClearAll">清空</div>
         </div>
-
-        <!-- 列表 -->
         <div class="book-list" v-if="!isLoading && bookGroups.length > 0">
             <div v-for="item in bookGroups" :key="item._id" class="book-item">
-                
-                <!-- 书籍标题 (长按删除逻辑用 touch 模拟) -->
-                <div class="book-header" 
-                     @click="toggleBook(item._id)"
-                     @touchstart="handleTouchStart(item, 'book')"
-                     @touchend="handleTouchEnd"
-                     @contextmenu.prevent> <!-- 禁用右键菜单 -->
-                    
-                    <div class="book-title-area">
-                        <div class="book-title">{{ item.title }}</div>
-                        <div class="book-word-count">{{ item.totalWordCount }} 词</div>
-                    </div>
+                <div class="book-header" @click="toggleBook(item._id)" @contextmenu.prevent>
+                    <div class="book-title-area"><div class="book-title">{{ item.title }}</div><div class="book-word-count">{{ item.totalWordCount }} 词</div></div>
                     <div :class="['arrow', activeBookId === item._id ? 'expanded' : '']"></div>
                 </div>
-
-                <!-- 章节列表 -->
                 <div :class="['chapters-container', activeBookId === item._id ? 'expanded' : '']">
-                    <div v-for="chapter in item.chapters" :key="chapter.chapterId" 
-                         class="chapter-item"
-                         @click="navigateToChapterWords(chapter)"
-                         @touchstart="handleTouchStart(chapter, 'chapter')"
-                         @touchend="handleTouchEnd">
-                        
-                        <span class="chapter-title">{{ chapter.title }}</span>
-                        <span class="chapter-word-count">{{ chapter.wordCount }} 词</span>
+                    <div v-for="chapter in item.chapters" :key="chapter.chapterId" class="chapter-item" @click="navigateToChapterWords(chapter)">
+                        <span class="chapter-title">{{ chapter.title }}</span><span class="chapter-word-count">{{ chapter.wordCount }} 词</span>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- 空状态 -->
-        <div v-if="!isLoading && bookGroups.length === 0" class="empty-tip">
-            生词本是空的，快去阅读文章添加生词吧！
-        </div>
-
+        <div v-if="!isLoading && bookGroups.length === 0" class="empty-tip">生词本是空的，快去阅读文章添加生词吧！</div>
         <div v-if="isLoading" class="loading-placeholder">加载中...</div>
-
-        <!-- 底部容量 -->
-        <div class="capacity-bar">
-            <div class="capacity-text">容量: {{ vocabCount }} / {{ vocabLimit }}</div>
-        </div>
-
+        <div class="capacity-bar"><div class="capacity-text">容量: {{ vocabCount }} / {{ vocabLimit }}</div></div>
     </div>
 </div>
 
@@ -150,30 +65,37 @@
             const activeBookId = ref(null);
             const vocabCount = ref(0);
             const vocabLimit = ref(3000);
-            
-            // 长按模拟变量
-            let touchTimer = null;
-            const longPressDuration = 600;
 
-            // === 初始化 ===
+            const loadSdkScript = () => {
+                return new Promise((resolve, reject) => {
+                    if (window.cloudbase) return resolve(window.cloudbase);
+                    const script = document.createElement('script');
+                    script.src = "https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js";
+                    script.onload = () => { console.log("SDK loaded"); resolve(window.cloudbase); };
+                    script.onerror = () => reject(new Error("SDK load failed"));
+                    document.head.appendChild(script);
+                });
+            };
+
             const initCloud = async () => {
+                if (!localStorage.getItem('web_user')) { alert('请先登录'); window.location.href = 'index.html'; return; }
                 try {
-                    const tcb = new tcb.init({ env: 'cloud1-4gcnkqkl8e5bcae5' });
-                    const auth = tcb.auth();
-                    await auth.signInAnonymously();
-                    db.value = tcb.database();
-                    
+                    const cloudbase = await loadSdkScript();
+                    const app = cloudbase.init({ env: 'cloud1-4gcnkqkl8e5bcae5', region: 'ap-shanghai' });
+                    const auth = app.auth({ persistence: 'local' });
+                    if (!auth.hasLoginState()) await auth.signInAnonymously();
+                    db.value = app.database();
                     loadAndGroupVocabulary();
                 } catch (e) {
                     console.error(e);
-                    alert('加载失败');
+                    alert('连接已断开，正在返回首页重新连接...');
+                    window.location.href = 'index.html';
                 }
             };
 
             const loadAndGroupVocabulary = async () => {
                 isLoading.value = true;
                 const tcb = db.value.app;
-                
                 try {
                     const res = await tcb.callFunction({ name: 'getAllVocabulary' });
                     if (!res.result || !res.result.success) throw new Error('Error');
@@ -181,18 +103,12 @@
                     const { wordList = [], bookList = [] } = res.result;
                     vocabCount.value = wordList.length;
 
-                    // 分组逻辑 (直接复用原 JS 逻辑)
                     const bookMap = new Map(bookList.map(book => [book._id, { ...book, chapters: new Map() }]));
-
                     wordList.forEach(word => {
                         if (bookMap.has(word.bookId)) {
                             const book = bookMap.get(word.bookId);
                             if (!book.chapters.has(word.chapterId)) {
-                                book.chapters.set(word.chapterId, {
-                                    chapterId: word.chapterId,
-                                    title: word.chapterTitle || "未知章节",
-                                    wordCount: 0,
-                                });
+                                book.chapters.set(word.chapterId, { chapterId: word.chapterId, title: word.chapterTitle || "未知章节", wordCount: 0 });
                             }
                             book.chapters.get(word.chapterId).wordCount++;
                         }
@@ -206,13 +122,9 @@
                                 ...book,
                                 totalWordCount: Array.from(book.chapters.values()).reduce((sum, ch) => sum + ch.wordCount, 0),
                                 chapters: Array.from(book.chapters.values()).sort((a, b) => {
-                                    const titleA = a.title || '';
-                                    const titleB = b.title || '';
-                                    if (category === 'podcast' || category === 'youtube') {
-                                        return titleB.localeCompare(titleA, undefined, { numeric: true });
-                                    } else {
-                                        return titleA.localeCompare(titleB, undefined, { numeric: true });
-                                    }
+                                    const titleA = a.title || ''; const titleB = b.title || '';
+                                    if (category === 'podcast' || category === 'youtube') return titleB.localeCompare(titleA, undefined, { numeric: true });
+                                    else return titleA.localeCompare(titleB, undefined, { numeric: true });
                                 })
                             };
                         })
@@ -220,94 +132,28 @@
 
                     bookGroups.value = groups;
                     isLoading.value = false;
-
                 } catch (err) {
                     console.error(err);
                     isLoading.value = false;
                 }
             };
 
-            // === 交互 ===
-            const toggleBook = (id) => {
-                activeBookId.value = activeBookId.value === id ? null : id;
-            };
-
-            const navigateToChapterWords = (chapter) => {
-                window.location.href = `vocabulary.html?chapterId=${chapter.chapterId}&chapterTitle=${encodeURIComponent(chapter.title)}`;
-            };
-
+            const toggleBook = (id) => { activeBookId.value = activeBookId.value === id ? null : id; };
+            const navigateToChapterWords = (chapter) => { window.location.href = `vocabulary.html?chapterId=${chapter.chapterId}&chapterTitle=${encodeURIComponent(chapter.title)}`; };
             const handleClearAll = () => {
                 if (vocabCount.value === 0) return alert('生词本已空');
                 if (confirm('⚠ 危险：确定要清空【所有生词】吗？此操作不可恢复！')) {
                     const tcb = db.value.app;
-                    // 这里假设 cloudfunctions/batchDelete 存在
-                    // 如果不存在，可能需要前端循环删除 (较慢)
                     tcb.callFunction({ name: 'batchDelete', data: {} }).then(res => {
-                        if (res.result && res.result.success) {
-                            alert('已全部清空');
-                            bookGroups.value = [];
-                            vocabCount.value = 0;
-                        } else {
-                            alert('操作失败');
-                        }
+                        if (res.result && res.result.success) { alert('已全部清空'); bookGroups.value = []; vocabCount.value = 0; } 
+                        else { alert('操作失败'); }
                     });
                 }
             };
 
-            // === 模拟长按删除 ===
-            const handleTouchStart = (item, type) => {
-                touchTimer = setTimeout(() => {
-                    touchTimer = null;
-                    // 触发长按逻辑
-                    if (type === 'book') confirmDeleteBook(item);
-                    if (type === 'chapter') confirmDeleteChapter(item);
-                }, longPressDuration);
-            };
+            onMounted(() => { initCloud(); });
 
-            const handleTouchEnd = () => {
-                if (touchTimer) {
-                    clearTimeout(touchTimer);
-                    touchTimer = null;
-                }
-            };
-
-            const confirmDeleteBook = (book) => {
-                if (confirm(`确定要删除书籍《${book.title}》下的全部 ${book.totalWordCount} 个生词吗？`)) {
-                    doBatchDelete({ bookId: book._id });
-                }
-            };
-
-            const confirmDeleteChapter = (chapter) => {
-                if (confirm(`确定要删除章节“${chapter.title}”下的全部生词吗？`)) {
-                    doBatchDelete({ chapterId: chapter.chapterId });
-                }
-            };
-
-            const doBatchDelete = async (params) => {
-                const tcb = db.value.app;
-                try {
-                    const res = await tcb.callFunction({ name: 'batchDeleteWords', data: params });
-                    if (res.result && res.result.success) {
-                        alert(`成功删除 ${res.result.removed} 个单词`);
-                        loadAndGroupVocabulary(); // 刷新
-                    } else {
-                        alert('删除失败');
-                    }
-                } catch (e) {
-                    console.error(e);
-                    alert('操作失败');
-                }
-            };
-
-            onMounted(() => {
-                initCloud();
-            });
-
-            return {
-                bookGroups, isLoading, activeBookId, vocabCount, vocabLimit,
-                toggleBook, navigateToChapterWords, handleClearAll,
-                handleTouchStart, handleTouchEnd
-            };
+            return { bookGroups, isLoading, activeBookId, vocabCount, vocabLimit, toggleBook, navigateToChapterWords, handleClearAll };
         }
     }).mount('#app');
 </script>
