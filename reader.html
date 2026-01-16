@@ -3,350 +3,882 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Web Reader</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
-    
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <title>Web Reader Pro (Ultimate Fix)</title>
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 引入 Cloudbase (如果不使用云开发可移除) -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js"></script>
     
     <style>
-        /* CSS styles are correct and remain unchanged from the previous version */
-        :root { --primary-color: #07c160; }
-        html { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { margin: 0; background: #f7f7f7; overflow: hidden; height: 100vh; user-select: none; -webkit-tap-highlight-color: transparent; }
+        /* ================= 基础重置 ================= */
+        :root { --primary-color: #07c160; --safe-bottom: env(safe-area-inset-bottom); }
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; height: 100vh; user-select: none; background: #f7f7f7; color: #333; }
         * { box-sizing: border-box; }
-        ::-webkit-scrollbar { display: none; }
-        #app { height: 100%; display: flex; justify-content: center; }
-        .page-container { width: 100%; max-width: 800px; height: 100vh; display: flex; flex-direction: column; position: relative; transition: background-color 0.3s; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
-        .theme-0 { background-color: #f7f7f7; } .theme-1 { background-color: #f6f1e1; } .theme-2 { background-color: #d7f1da; } .theme-3 { background-color: #121212; color: #ccc; }
-        .watermark { position: fixed; top: 5px; right: 10px; font-size: 10px; color: rgba(0,0,0,0.1); pointer-events: none; z-index: 9999; }
-        .video-panel-wrapper { width: 94%; margin: 10px auto 0; background-color: #f7f7f7; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); border: 1px solid rgba(0,0,0,0.05); position: relative; flex-shrink: 0; z-index: 50; overflow: hidden; display: flex; flex-direction: column; }
-        .theme-3 .video-panel-wrapper { border-color: #6b6b6b; background-color: #1c1c1e; }
-        .theme-1 .video-panel-wrapper { background-color: #f6f1e1; } .theme-2 .video-panel-wrapper { background-color: #d7f1da; }
-        .media-wrapper { position: relative; width: 100%; height: 200px; background: #000; }
-        .main-media, .cover-art-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        .main-media { object-fit: cover; z-index: 1; }
-        .cover-art-container { z-index: 1; }
-        .cover-art-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; filter: blur(15px); transform: scale(1.1); opacity: 0.5; object-fit: cover; }
-        .cover-art-fg { position: relative; z-index: 2; width: 100%; height: 100%; object-fit: contain; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        .video-subtitle-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 10px; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; z-index: 10; pointer-events: none; overflow-y: auto; }
-        .video-notes-container { display: flex; flex-wrap: wrap; pointer-events: auto; }
-        .v-note-item { background: rgba(255,255,255,0.8); backdrop-filter: blur(4px); border-radius: 6px; padding: 2px 8px; margin: 0 6px 6px 0; border: 1px solid rgba(255,255,255,0.1); font-size: 13px; color: #333; box-shadow: 0 2px 4px rgba(0,0,0,0.3); cursor: pointer; pointer-events: auto; transition: transform 0.1s; }
-        .v-note-item:hover { transform: translateY(-2px); }
-        .note-en { font-weight: bold; margin-right: 4px; color: #cc0000; }
-        .current-sentence-bar { position: relative; width: 100%; padding: 12px; background-color: inherit; border-top: 1px solid rgba(0,0,0,0.05); z-index: 20; }
-        .theme-3 .current-sentence-bar { border-top-color: #333; }
-        .current-sentence-bar .en-text { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
-        .current-sentence-bar .cn-text { font-size: 14px; color: #666; }
-        .theme-3 .current-sentence-bar .en-text { color: #fff; } .theme-3 .current-sentence-bar .cn-text { color: #999; }
-        .content-area { flex: 1; overflow-y: auto; padding: 10px 10px 140px 10px; scroll-behavior: auto; position: relative; }
-        .content-area.focus-mode { opacity: 0.4; transition: opacity 0.3s; }
-        .sentence-group { padding: 8px 10px; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid transparent; transition: all 0.2s; cursor: pointer; }
-        .sentence-group.active { background: #f8f3d7; border-left-color: #d4b162; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .theme-1 .sentence-group.active { background: #eaddc5; border-left-color: #8c7b64; } .theme-2 .sentence-group.active { background: #b5dcb9; border-left-color: #4a6652; } .theme-3 .sentence-group.active { background: #2a2a2a; border-left-color: #fff; }
-        .en-text { line-height: 1.45; color: #2c2c2e; transition: color 0.2s; } .cn-text { font-size: 14px; color: #888; margin-top: 4px; line-height: 1.4; min-height: 14px; }
-        .theme-1 .en-text { color: #16120d; } .theme-1 .cn-text { color: #7a6e5d; } .theme-2 .en-text { color: #0b0f0c; } .theme-2 .cn-text { color: #5e7063; } .theme-3 .en-text { color: #ccc; } .theme-3 .cn-text { color: #666; } .theme-3 .sentence-group.active .en-text { color: #fff; }
-        .keyword { color: inherit; border-bottom: 1px dotted rgba(0,0,0,0.2); }
-        .bold-keywords .keyword, .bold-keywords .en-text { font-weight: bold; }
-        .cn-text.mask-layout { margin-top: 4px; padding: 6px 8px; border-radius: 4px; border: 1px solid transparent; transition: all 0.2s; }
-        .cn-text.mask-layout.masked { color: transparent !important; user-select: none; background-image: repeating-linear-gradient(45deg, #f1f1f1, #f1f1f1 5px, #e9e9e9 5px, #e9e9e9 10px); border-color: #e0e0e0; }
-        .theme-3 .cn-text.mask-layout.masked { background-image: repeating-linear-gradient(45deg, #222, #222 5px, #2a2a2a 5px, #2a2a2a 10px); border-color: #333; }
-        .no-text-mode .en-text span { color: transparent !important; background: rgba(0,0,0,0.1); border-radius: 3px; margin: 0 1px; }
-        .theme-3 .no-text-mode .en-text span { background: rgba(255,255,255,0.2); }
-        .no-text-mode .sentence-group.revealed .en-text span { color: inherit !important; background: transparent; }
-        .fs-small .en-text { font-size: 16px; } .fs-normal .en-text { font-size: 18px; } .fs-large .en-text { font-size: 20px; } .fs-xlarge .en-text { font-size: 22px; }
-        .popover { position: fixed; background: #2c2c2e; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 14px; max-width: 80%; z-index: 1000; box-shadow: 0 5px 20px rgba(0,0,0,0.4); transform-origin: bottom center; animation: popUp 0.15s; }
-        .pop-arrow { position: absolute; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #2c2c2e; bottom: -6px; left: 50%; transform: translateX(-50%); }
-        @keyframes popUp { from { transform: translateY(10px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-        .settings-popup-wrapper { position: fixed; bottom: 85px; left: 5%; width: 90%; max-width: calc(800px * 0.9); background: #fff; border-radius: 12px; padding: 12px 0; box-shadow: 0 -4px 30px rgba(0,0,0,0.15); z-index: 650; border: 1px solid #eee; }
-        .theme-3 .settings-popup-wrapper { background: #222; border-color: #444; }
-        .settings-scroll { display: flex; overflow-x: auto; gap: 0; padding: 0 10px; }
-        .setting-item { text-align: center; flex-shrink: 0; min-width: 60px; padding: 5px; cursor: pointer; border-radius: 8px; transition: background-color 0.2s; }
-        .setting-item:hover { background-color: rgba(0,0,0,0.05); }
-        .setting-label { font-size: 11px; color: #999; margin-bottom: 4px; }
-        .setting-value { font-size: 13px; font-weight: bold; color: #333; } .theme-3 .setting-value { color: #fff; }
-        .player-bar-wrapper { position: fixed; bottom: 0; left: 0; right: 0; margin: 0 auto; width: 100%; max-width: 800px; z-index: 600; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); padding-bottom: env(safe-area-inset-bottom); }
-        .theme-3 .player-bar-wrapper { background: rgba(28,28,30,0.95); border-top: 1px solid #333; }
-        .theme-1 .player-bar-wrapper { background: rgba(246, 241, 225, 0.95); border-top: 1px solid #eaddc5; } .theme-2 .player-bar-wrapper { background: rgba(199, 237, 204, 0.95); border-top: 1px solid #b5dcb9; }
-        .progress-container { position: absolute; top: -15px; left: 5%; width: 90%; height: 30px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
-        .progress-container.show { opacity: 1; pointer-events: auto; }
-        .progress-box { width: 100%; background: #fff; height: 32px; border-radius: 16px; display: flex; align-items: center; padding: 0 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.05); }
-        .theme-3 .progress-box { background: #333; border-color: #555; }
-        .time-text { font-size: 10px; width: 35px; text-align: center; color: #888; font-variant-numeric: tabular-nums; }
-        .slider { flex: 1; margin: 0 8px; -webkit-appearance: none; height: 4px; background: #ddd; border-radius: 2px; }
-        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #333; cursor: pointer; }
-        .player-controls { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
-        .icon-btn { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; color: #333; transition: transform 0.1s; }
-        .icon-btn:active { transform: scale(0.9); }
-        .theme-3 .icon-btn { background: #333; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
-        .theme-1 .icon-btn { background: #fbf8ef; color: #5e4b35; } .theme-2 .icon-btn { background: #e3f7e6; color: #2e4033; }
-        .play-pause-btn { width: 56px; height: 56px; font-size: 24px; background: #222; color: #fff; }
-        .theme-3 .play-pause-btn { background: #eee; color: #000; } .theme-1 .play-pause-btn { background: #5e4b35; color: #fbf8ef; } .theme-2 .play-pause-btn { background: #2e4033; color: #e3f7e6; }
-        .mode-btn { font-size: 10px; width: auto; padding: 0 12px; border-radius: 20px; font-weight: bold; }
-        .mode-auto { background: #07c160 !important; color: #fff !important; } .mode-manual { background: #05a8da !important; color: #fff !important; } .mode-silent { background: #333 !important; color: #fff !important; border: 1px solid #555; }
-        .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; color: #333; font-weight: bold; }
-        .theme-3 .loading-mask { background: rgba(0,0,0,0.8); color: #fff; }
-        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; z-index: 3000; pointer-events: none; }
+        ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+        
+        /* 布局容器 */
+        .page-container { height: 100vh; display: flex; flex-direction: column; position: relative; transition: background-color 0.3s; overflow: hidden; }
+        
+        /* 主题配色 */
+        .theme-0 { background-color: #f7f7f7; --text-main: #2c2c2e; --text-sub: #888; --active-bg: #f8f3d7; --active-border: #d4b162; }
+        .theme-1 { background-color: #f6f1e1; --text-main: #16120d; --text-sub: #7a6e5d; --active-bg: #eaddc5; --active-border: #8c7b64; }
+        .theme-2 { background-color: #d7f1da; --text-main: #0b0f0c; --text-sub: #5e7063; --active-bg: #b5dcb9; --active-border: #4a6652; }
+        .theme-3 { background-color: #1c1c1e; --text-main: #e5e5e5; --text-sub: #888; --active-bg: #333; --active-border: #fff; }
+
+        .watermark { position: fixed; top: 10px; right: 10px; font-size: 10px; color: rgba(0,0,0,0.08); pointer-events: none; z-index: 99; }
+        .theme-3 .watermark { color: rgba(255,255,255,0.08); }
+
+        /* ================= 视频/顶部区域 ================= */
+        .video-panel-wrapper {
+            flex-shrink: 0; 
+            width: 94%; 
+            margin: 10px auto 5px; 
+            background: #000; 
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            z-index: 50;
+            transition: height 0.3s;
+        }
+        .theme-3 .video-panel-wrapper { border: 1px solid #333; }
+
+        .media-wrapper {
+            position: relative;
+            width: 100%;
+            height: 210px; /* 固定高度，防止跳动 */
+            background: #000;
+        }
+
+        .main-media, .cover-art-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        }
+        .main-media { object-fit: contain; z-index: 1; }
+        .cover-art-container { z-index: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .cover-art-bg { position: absolute; width: 100%; height: 100%; filter: blur(20px) brightness(0.7); object-fit: cover; transform: scale(1.2); }
+        .cover-art-fg { position: relative; z-index: 2; height: 80%; width: auto; max-width: 80%; object-fit: contain; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-radius: 4px; }
+
+        /* 视频内注解层 */
+        .video-subtitle-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            padding: 8px; z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column;
+            overflow-y: auto;
+        }
+        .v-note-item {
+            align-self: flex-start;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            border-radius: 4px; padding: 4px 8px; margin-bottom: 6px;
+            border: 1px solid rgba(255,255,255,0.15);
+            font-size: 13px; color: #fff;
+            pointer-events: auto; cursor: pointer;
+            max-width: 90%;
+        }
+        .note-en { color: #ffcc00; font-weight: bold; margin-right: 5px; }
+
+        /* 固定字幕栏 */
+        .fixed-subtitle-bar {
+            background: inherit;
+            padding: 12px 15px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .theme-3 .fixed-subtitle-bar { background: #2c2c2e; border-top-color: #333; }
+        .fixed-subtitle-bar .en-text { font-size: 17px; font-weight: 600; color: var(--text-main); line-height: 1.4; }
+        .fixed-subtitle-bar .cn-text { font-size: 14px; color: var(--text-sub); margin-top: 6px; line-height: 1.4; }
+
+        /* ================= 列表内容区 ================= */
+        .content-area { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 10px 12px calc(80px + var(--safe-bottom)) 12px; /* 底部留白给播放条 */
+            scroll-behavior: auto; /* JS控制滚动，这里设为auto */
+            -webkit-overflow-scrolling: touch;
+        }
+        /* 专注模式：视频开启且字幕栏开启时，列表变淡 */
+        .content-area.focus-mode .sentence-group:not(.active) { opacity: 0.3; filter: blur(0.5px); transition: all 0.5s; }
+        
+        .sentence-group { 
+            padding: 10px 12px; margin-bottom: 12px; 
+            border-radius: 8px; 
+            border-left: 4px solid transparent; 
+            transition: all 0.25s ease;
+            cursor: pointer; 
+        }
+        /* 激活状态 */
+        .sentence-group.active { 
+            background: var(--active-bg); 
+            border-left-color: var(--active-border);
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .en-text { font-size: 18px; line-height: 1.5; color: var(--text-main); word-wrap: break-word; }
+        .cn-text { font-size: 15px; line-height: 1.5; color: var(--text-sub); margin-top: 6px; min-height: 1em; }
+        
+        /* 关键词 */
+        .keyword { border-bottom: 1px dotted rgba(150,150,150,0.5); padding-bottom: 1px; }
+        .bold-keywords .keyword { font-weight: 700; }
+        
+        /* 遮盖模式 */
+        .mask-layout { 
+            background: #e0e0e0; color: transparent !important; border-radius: 4px; 
+            user-select: none; transition: all 0.2s;
+        }
+        .theme-3 .mask-layout { background: #333; }
+        .sentence-group.revealed .mask-layout { background: transparent; color: var(--text-sub) !important; }
+
+        /* 字体大小类 */
+        .fs-small .en-text { font-size: 16px; } 
+        .fs-normal .en-text { font-size: 18px; } 
+        .fs-large .en-text { font-size: 20px; } 
+        .fs-xlarge .en-text { font-size: 24px; }
+
+        /* ================= 气泡 (Popover) ================= */
+        .popover { 
+            position: fixed; 
+            background: #222; color: #fff; 
+            padding: 12px 16px; 
+            border-radius: 8px; 
+            font-size: 14px; line-height: 1.5;
+            max-width: 280px; 
+            z-index: 1000; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: popFadeIn 0.2s ease-out;
+        }
+        .theme-3 .popover { background: #444; border: 1px solid #555; }
+        .pop-arrow { position: absolute; width: 0; height: 0; border: 6px solid transparent; }
+        /* 箭头朝下 (默认) */
+        .pop-arrow.bottom { border-top-color: #222; bottom: -12px; left: 50%; transform: translateX(-50%); }
+        .theme-3 .pop-arrow.bottom { border-top-color: #444; }
+        /* 箭头朝上 (当气泡在下方时) */
+        .pop-arrow.top { border-bottom-color: #222; top: -12px; left: 50%; transform: translateX(-50%); }
+        .theme-3 .pop-arrow.top { border-bottom-color: #444; }
+
+        @keyframes popFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ================= 底部播放栏 ================= */
+        .player-bar-wrapper { 
+            position: fixed; bottom: 0; left: 0; width: 100%; 
+            z-index: 600; 
+            background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 -1px 0 rgba(0,0,0,0.05); 
+            padding-bottom: var(--safe-bottom);
+        }
+        .theme-3 .player-bar-wrapper { background: rgba(30,30,32,0.92); box-shadow: 0 -1px 0 rgba(255,255,255,0.1); }
+
+        /* 进度条区域 (加大触控区域) */
+        .progress-float-container {
+            position: absolute; top: -20px; left: 0; width: 100%; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .progress-float-container.show { opacity: 1; pointer-events: auto; }
+        
+        .progress-pill {
+            background: #fff; padding: 0 15px; height: 36px; border-radius: 18px;
+            display: flex; align-items: center; width: 90%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.05);
+        }
+        .theme-3 .progress-pill { background: #333; border-color: #444; }
+
+        .time-txt { font-size: 11px; font-variant-numeric: tabular-nums; color: #888; width: 40px; text-align: center; }
+        .seek-slider { 
+            flex: 1; margin: 0 10px; -webkit-appearance: none; height: 20px; background: transparent; 
+            position: relative; 
+        }
+        /* 伪造一个细轨道 */
+        .seek-slider::after {
+            content: ''; position: absolute; left: 0; top: 9px; width: 100%; height: 2px; 
+            background: #ddd; border-radius: 1px; z-index: -1;
+        }
+        .theme-3 .seek-slider::after { background: #555; }
+        /* 拇指样式 */
+        .seek-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; 
+            background: #333; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transform: translateY(-1px);
+        }
+        .theme-3 .seek-slider::-webkit-slider-thumb { background: #fff; }
+
+        /* 按钮控制区 */
+        .controls-row { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+        
+        .c-btn { 
+            width: 44px; height: 44px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 18px; background: transparent; color: var(--text-main);
+            transition: background 0.2s;
+        }
+        .c-btn:active { background: rgba(0,0,0,0.05); }
+        .theme-3 .c-btn:active { background: rgba(255,255,255,0.1); }
+        
+        .play-btn { 
+            width: 56px; height: 56px; font-size: 24px; 
+            background: var(--text-main); color: var(--active-bg); 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .theme-3 .play-btn { background: #eee; color: #000; }
+
+        .mode-tag { 
+            padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; 
+            background: #eee; color: #666; 
+        }
+        .mode-tag.active { background: var(--primary-color); color: #fff; }
+
+        /* ================= 设置弹窗 ================= */
+        .settings-panel {
+            position: fixed; bottom: calc(70px + var(--safe-bottom)); left: 5%; width: 90%;
+            background: #fff; border-radius: 16px; 
+            padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            z-index: 650; display: flex; gap: 10px; overflow-x: auto;
+        }
+        .theme-3 .settings-panel { background: #2c2c2e; border: 1px solid #444; }
+        .set-item { 
+            flex: 0 0 60px; text-align: center; padding: 5px; 
+            border-radius: 8px; cursor: pointer; 
+        }
+        .set-item:active { background: rgba(0,0,0,0.05); }
+        .set-lbl { font-size: 10px; color: #999; margin-bottom: 4px; }
+        .set-val { font-size: 13px; font-weight: 600; color: var(--text-main); }
+
+        /* ================= 辅助元素 ================= */
+        .loading-mask { 
+            position: fixed; inset: 0; background: rgba(255,255,255,0.9); 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            z-index: 2000; color: #333; 
+        }
+        .theme-3 .loading-mask { background: #000; color: #fff; }
+        .toast { 
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            background: rgba(0,0,0,0.8); color: #fff; 
+            padding: 10px 20px; border-radius: 8px; font-size: 14px; 
+            z-index: 3000; pointer-events: none; opacity: 0; transition: opacity 0.3s; 
+        }
+        .toast.show { opacity: 1; }
+
     </style>
 </head>
 <body>
 
 <div id="app">
-    <!-- HTML is identical to previous correct version -->
-    <div class="page-container" :class="['theme-' + settings.themeIndex]" @click="onContainerClick" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
-        <div class="watermark" v-if="!isFullScreen">{{ watermarkId }}</div>
-        <div class="video-panel-wrapper" v-if="settings.showVideoMode">
+    <div :class="['page-container', 'theme-' + themeIndex]" @click="onContainerClick" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
+        
+        <div class="watermark">{{ watermarkText }}</div>
+
+        <!-- 顶部：视频/音频封面区域 -->
+        <div class="video-panel-wrapper" v-if="showVideoMode">
             <div class="media-wrapper">
-                <video v-if="chapterData.videoUrl" ref="videoPlayer" class="main-media" 
-                       :src="chapterData.videoUrl" playsinline webkit-playsinline
-                       @loadedmetadata="onMediaLoaded" @timeupdate="onMediaTimeUpdate" @ended="onMediaEnded" 
-                       @play="onMediaPlay" @pause="onMediaPause" @click.stop="togglePlay" crossorigin="anonymous">
+                <!-- 视频元素 -->
+                <video v-if="videoUrl" ref="videoPlayer" class="main-media" 
+                       :src="videoUrl" playsinline webkit-playsinline
+                       @timeupdate="onMediaTimeUpdate" @ended="onChapterEnd" 
+                       @play="onMediaStateChange(true)" @pause="onMediaStateChange(false)"
+                       @click.stop="togglePlay">
                 </video>
+                <!-- 音频封面 (当开启视频模式但无视频URL，或强制封面时) -->
                 <div v-else class="cover-art-container" @click.stop="togglePlay">
-                    <img class="cover-art-bg" :src="chapterData.coverUrl" loading="lazy" />
-                    <img class="cover-art-fg" :src="chapterData.coverUrl" loading="lazy" />
+                    <img class="cover-art-bg" :src="coverUrl || demoCover" />
+                    <img class="cover-art-fg" :src="coverUrl || demoCover" />
                 </div>
-                <div class="video-subtitle-overlay" v-if="playerState.currentIndex >= 0">
-                    <div class="video-notes-container">
-                        <div class="v-note-item" v-for="(item, idx) in currentNoteSegments" :key="idx" @click.stop="handleOverlayNoteClick(item)">
-                            <span class="note-en" :style="{color: item.color}">{{item.prefix}}</span>
-                            <span class="note-cn">{{item.suffix}}</span>
-                        </div>
+                
+                <!-- 视频上的单词注解浮层 -->
+                <div class="video-subtitle-overlay" v-if="currentNoteSegments.length > 0">
+                    <div class="v-note-item" v-for="(item, idx) in currentNoteSegments" :key="idx" 
+                         @click.stop="showPopover(item, $event, 'video')">
+                        <span class="note-en">{{item.prefix}}</span>
+                        <span>{{item.suffix}}</span>
                     </div>
                 </div>
             </div>
-            <div id="adaptive-bar" class="current-sentence-bar" v-if="settings.useFixedSubtitleBar && chapterData.sentences[playerState.currentIndex]">
+
+            <!-- 固定在视频下方的字幕条 -->
+            <div class="fixed-subtitle-bar" v-if="useFixedSubtitleBar && sentences[currentIndex]">
                 <div class="en-text">
-                     <span v-for="(seg, i) in chapterData.sentences[playerState.currentIndex].en_segments" :key="i">
-                        <span v-if="seg.type === 'keyword'" class="keyword" :style="{color: seg.color}" @click.stop="showNote(seg, $event, playerState.currentIndex, 'video')">{{ seg.text }}</span>
+                    <span v-for="(seg, i) in sentences[currentIndex].en_segments" :key="i">
+                        <span v-if="seg.type === 'keyword'" class="keyword" 
+                              :style="{color: seg.color || 'var(--primary-color)'}" 
+                              @click.stop="showPopover(seg, $event, 'bar')">{{ seg.text }}</span>
                         <span v-else>{{ seg.text }}</span>
                     </span>
                 </div>
-                <div class="cn-text" :class="{'mask-layout': maskMode, 'masked': maskMode && !revealedMap[playerState.currentIndex]}" v-if="showCN" @click.stop="toggleReveal(playerState.currentIndex)">
-                     {{ chapterData.sentences[playerState.currentIndex].cn_text }}
-                </div>
+                <div class="cn-text" v-if="showCN">{{ sentences[currentIndex].cn_text }}</div>
             </div>
         </div>
-        <div class="content-area" ref="contentArea" @scroll="onScroll"
-             :class="[fontSizes[settings.fontSizeIndex].class, settings.isBold?'bold-keywords':'', hideAllText?'no-text-mode':'', settings.showVideoMode && settings.useFixedSubtitleBar ? 'focus-mode' : '']" 
-             :style="{ fontFamily: fonts[settings.fontIndex].value }">
-            <div v-for="(item, index) in chapterData.sentences" :key="index" :id="'sent-' + index"
+
+        <!-- 中部：句子列表 -->
+        <div class="content-area" 
+             ref="contentArea" 
+             :class="[fontSizes[currentFontSizeIndex].class, isBold?'bold-keywords':'', (showVideoMode && useFixedSubtitleBar) ? 'focus-mode' : '']"
+             :style="{ fontFamily: fonts[currentFontIndex].value }"
+             @scroll="onListScroll">
+             
+            <div v-for="(item, index) in sentences" :key="index" 
+                 :id="'sent-' + index"
                  class="sentence-group" 
-                 :class="{ 'active': playerState.currentIndex === index && (!settings.showVideoMode || !settings.useFixedSubtitleBar), 'revealed': revealedMap[index] }"
-                 @click.stop="handleContainerTap($event, index)">
+                 :class="{ 'active': currentIndex === index, 'revealed': revealedMap[index] }"
+                 @click.stop="playAt(index)">
+                 
                  <div class="en-text">
                     <span v-for="(seg, i) in item.en_segments" :key="i">
-                        <span v-if="seg.type === 'keyword'" class="keyword" :style="{color: seg.color}" :id="'k-'+index+'-'+i" @click.stop="showNote(seg, $event, index, 'list')">{{ seg.text }}</span>
+                        <span v-if="seg.type === 'keyword'" class="keyword" 
+                              :style="{color: seg.color}" 
+                              @click.stop="showPopover(seg, $event, 'list')">{{ seg.text }}</span>
                         <span v-else>{{ seg.text }}</span>
                     </span>
                 </div>
-                <div class="cn-text" :class="{'mask-layout': maskMode, 'masked': maskMode && !revealedMap[index]}" v-if="showCN || maskMode" @click.stop="toggleReveal(index)">{{ item.cn_text }}</div>
+                
+                <div class="cn-text" 
+                     :class="{'mask-layout': maskMode && !revealedMap[index]}" 
+                     v-if="displayMode !== 3"
+                     @click.stop="toggleReveal(index)">
+                     {{ item.cn_text }}
+                </div>
             </div>
         </div>
-        <div class="popover page-outer-popover" v-if="showPop && clickSource !== 'video'" :style="popover.style" @click.stop="addToVocabulary">
-            <div style="white-space: pre-wrap;">{{ popover.note }}</div>
-            <div style="font-size:10px; opacity:0.7; margin-top:6px; border-top:1px solid rgba(255,255,255,0.2); padding-top:4px;">点击收藏到生词本</div>
-            <div class="pop-arrow" :style="popover.arrowStyle"></div>
-        </div>
-        <div class="popover video-inner-popover" v-if="showPop && clickSource === 'video'" :style="popover.style" @click.stop="addToVocabulary">
-            <div style="white-space: pre-wrap;">{{ popover.note }}</div>
-            <div style="font-size:10px; opacity:0.7; margin-top:6px; text-align:right;">(点击收藏)</div>
-            <div class="pop-arrow" :style="popover.arrowStyle"></div>
-        </div>
-        <div class="settings-popup-wrapper" v-if="showSettingsPopup" @click.stop>
-            <div class="settings-scroll">
-                <div class="setting-item" @click="toggleVideoMode"><div class="setting-label">视频</div><div class="setting-value">{{ settings.showVideoMode ? '开启' : '关闭' }}</div></div>
-                <div class="setting-item" @click="toggleFixedSubtitleBar"><div class="setting-label">字幕栏</div><div class="setting-value">{{ settings.useFixedSubtitleBar ? '开启' : '关闭' }}</div></div>
-                <div class="setting-item" @click="cyclePlaybackRate"><div class="setting-label">倍速</div><div class="setting-value">{{ playbackRates[settings.rateIndex] }}x</div></div>
-                <div class="setting-item" @click="cyclePlayMode"><div class="setting-label">播放</div><div class="setting-value">{{ playModes[settings.playMode] }}</div></div>
-                <div class="setting-item" @click="cycleDisplayMode"><div class="setting-label">显示</div><div class="setting-value">{{ displayModes[settings.displayMode] }}</div></div>
-                <div class="setting-item" @click="cycleChapterEndMode"><div class="setting-label">本章结束</div><div class="setting-value">{{ chapterEndModes[settings.chapterEndMode] }}</div></div>
-                <div class="setting-item" @click="cycleTheme"><div class="setting-label">主题</div><div class="setting-value">{{ themeNames[settings.themeIndex] }}</div></div>
-                <div class="setting-item" @click="cycleFont"><div class="setting-label">字体</div><div class="setting-value">{{ fonts[settings.fontIndex].name }}</div></div>
-                <div class="setting-item" @click="cycleFontSize"><div class="setting-label">字号</div><div class="setting-value">{{ fontSizes[settings.fontSizeIndex].name }}</div></div>
+
+        <!-- 单词气泡 Popover -->
+        <div class="popover" v-if="popData.show" :style="popData.style" @click.stop="addToBook">
+            <div style="font-weight:bold; margin-bottom:4px; color:#ffcc00">{{ popData.text }}</div>
+            <div style="white-space: pre-wrap;">{{ popData.note }}</div>
+            <div style="font-size:10px; opacity:0.6; margin-top:8px; border-top:1px solid rgba(255,255,255,0.2); padding-top:4px; text-align:right;">
+                点击收藏
             </div>
+            <div :class="['pop-arrow', popData.arrowPos]" :style="popData.arrowStyle"></div>
         </div>
+
+        <!-- 底部设置面板 -->
+        <div class="settings-panel" v-if="showSettings">
+            <div class="set-item" @click="toggleVideoMode"><div class="set-lbl">模式</div><div class="set-val">{{ showVideoMode ? '视频' : '音频' }}</div></div>
+            <div class="set-item" @click="cycleSpeed"><div class="set-lbl">倍速</div><div class="set-val">{{ playbackRates[speedIndex] }}x</div></div>
+            <div class="set-item" @click="cycleLoop"><div class="set-lbl">循环</div><div class="set-val">{{ loopModes[loopModeIndex] }}</div></div>
+            <div class="set-item" @click="cycleDisplay"><div class="set-lbl">显示</div><div class="set-val">{{ displayModes[displayModeIndex] }}</div></div>
+            <div class="set-item" @click="cycleTheme"><div class="set-lbl">主题</div><div class="set-val">{{ themeNames[themeIndex] }}</div></div>
+            <div class="set-item" @click="cycleFont"><div class="set-lbl">字体</div><div class="set-val">{{ fonts[currentFontIndex].name }}</div></div>
+        </div>
+
+        <!-- 底部播放控制条 -->
         <div class="player-bar-wrapper">
-            <div class="progress-container" :class="{show: showSettingsPopup || isDragging || !isPlaying}">
-                <div class="progress-box">
-                    <span class="time-text">{{ progress.currentTimeStr }}</span>
-                    <input type="range" class="slider" min="0" max="100" v-model="progress.percent" 
-                           @input="onSliderChanging" @change="onSliderChange">
-                    <span class="time-text">{{ progress.durationStr }}</span>
+            <!-- 悬浮进度条 (操作时或暂停时显示) -->
+            <div class="progress-float-container" :class="{show: isSeeking || !isPlaying || showSettings}">
+                <div class="progress-pill">
+                    <span class="time-txt">{{ formatTime(currentTime) }}</span>
+                    <input type="range" class="seek-slider" min="0" max="100" step="0.1"
+                           :value="progressPercent" 
+                           @input="onSeekInput" @change="onSeekChange">
+                    <span class="time-txt">{{ formatTime(duration) }}</span>
                 </div>
             </div>
-            <div class="player-controls">
-                <div class="icon-btn" @click.stop="toggleSettingsPopup">☰</div>
-                <div style="display:flex; gap:20px; align-items:center;">
-                    <div class="icon-btn" @click.stop="playPrev">ᐊ</div>
-                    <div class="icon-btn play-pause-btn" @click.stop="togglePlay">{{ isPlaying ? '❚❚' : '▶' }}</div>
-                    <div class="icon-btn" @click.stop="playNext">ᐅ</div>
+
+            <div class="controls-row">
+                <div class="c-btn" @click.stop="showSettings = !showSettings">☰</div>
+                
+                <div style="display:flex; gap:25px; align-items:center;">
+                    <div class="c-btn" @click.stop="playPrev">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                    </div>
+                    <div class="c-btn play-btn" @click.stop="togglePlay">
+                        <span v-if="!isPlaying">▶</span>
+                        <span v-else style="font-size:20px; font-weight:bold;">❚❚</span>
+                    </div>
+                    <div class="c-btn" @click.stop="playNext">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                    </div>
                 </div>
-                <div class="icon-btn mode-btn" :class="settings.readingModeType === 0 ? 'mode-auto' : (settings.readingModeType === 1 ? 'mode-manual' : 'mode-silent')" @click.stop="toggleReadingMode">
-                    {{ settings.readingModeType === 0 ? '听书' : (settings.readingModeType === 1 ? '滑动' : '阅读') }}
+
+                <div class="mode-tag" :class="{active: autoScrollMode}" @click.stop="toggleScrollMode">
+                    {{ autoScrollMode ? '听书' : '手动' }}
                 </div>
             </div>
         </div>
-        <div class="loading-mask" v-if="isLoading">加载中...</div>
-        <div class="toast" v-if="toastMsg">{{ toastMsg }}</div>
+
+        <!-- Loading / Toast -->
+        <div class="loading-mask" v-if="isLoading">
+            <div style="font-size:18px; font-weight:bold; margin-bottom:10px;">{{ loadingText }}</div>
+            <div v-if="isDemoMode" style="font-size:12px; color:#666;">(Demo Mode)</div>
+        </div>
+        <div :class="['toast', {show: toast.show}]">{{ toast.msg }}</div>
     </div>
 </div>
 
 <script>
-    const { createApp, ref, reactive, onMounted, onUnmounted, nextTick, computed } = Vue;
-    const SETTING_KEY = 'web_reader_settings_v2';
-    const PROGRESS_KEY = 'web_reader_progress_v1';
-    
-    createApp({
-        setup() {
-            // --- State definitions (same as previous version) ---
-            const isLoading = ref(true); const tcbApp = ref(null); const db = ref(null);
-            const chapterData = reactive({ bookId: '', chapterId: '', title: 'Reader', nextChapterId: '', sentences: [], audioUrl: '', videoUrl: '', coverUrl: '' });
-            const watermarkId = ref('Web User'); const toastMsg = ref('');
-            const settings = reactive({ themeIndex: 0, showVideoMode: false, useFixedSubtitleBar: true, rateIndex: 2, playMode: 0, displayMode: 0, chapterEndMode: 0, readingModeType: 1, fontIndex: 1, fontSizeIndex: 1, isBold: false });
-            const audioObj = new Audio(); const videoPlayer = ref(null);
-            const isPlaying = ref(false); const isDragging = ref(false);
-            const progress = reactive({ currentTimeStr: '00:00', durationStr: '00:00', percent: 0, durationSeconds: 0 });
-            const playerState = reactive({ currentIndex: -1, currentLoop: 0, shadowLock: false, shadowTimer: null, ignoreTimeUpdate: false });
-            const showSettingsPopup = ref(false); const showPop = ref(false); const popover = reactive({ note: '', style: {}, arrowStyle: {} });
-            const clickSource = ref('list'); const currentNoteData = ref(null); const isFullScreen = ref(false); const revealedMap = ref({});
-            const themeNames = ['默认', '羊皮纸', '护眼绿', '暗黑']; const playbackRates = [0.5, 0.8, 1.0, 1.2, 1.5, 2.0]; const playModes = ['顺序', '单句×3', '一次', '跟读']; const displayModes = ['双语', '纯英', '遮盖', '无字']; const chapterEndModes = ['停止', '下一章', '循环'];
-            const fonts = [ { name: '衬线', value: '"Georgia", "Times New Roman", serif' }, { name: '黑体', value: '-apple-system, "Helvetica Neue", sans-serif' }, { name: '圆体', value: '"Varela Round", sans-serif' }, { name: '打字机', value: "'Courier New', monospace" } ];
-            const fontSizes = [{ name: '小', class: 'fs-small' }, { name: '中', class: 'fs-normal' }, { name: '大', class: 'fs-large' }, { name: '特大', class: 'fs-xlarge' }];
-            const showCN = computed(() => settings.displayMode !== 1); const maskMode = computed(() => settings.displayMode === 2); const hideAllText = computed(() => settings.displayMode === 3);
-            const currentNoteSegments = computed(() => {
-                const sent = chapterData.sentences[playerState.currentIndex]; if (!sent || !sent.en_segments) return [];
-                const segs = []; const seen = new Set();
-                sent.en_segments.forEach(seg => {
-                    if (seg.type === 'keyword' && seg.note && !seen.has(seg.note)) {
-                        seen.add(seg.note); const parts = seg.note.split(/[:：]/);
-                        segs.push({ prefix: parts[0] || seg.text, suffix: parts[1] || '', color: seg.color || '#cc0000', fullNote: seg.note, text: seg.text });
+const { createApp, ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } = Vue;
+
+// 演示数据 (当云端加载失败时使用)
+const DEMO_DATA = {
+    title: "Steve Jobs Stanford Speech",
+    audio: "https://dict.youdao.com/dictvoice?audio=Stay%20hungry%2C%20stay%20foolish.&type=2", // 仅作示例
+    video: "https://media.w3.org/2010/05/sintel/trailer.mp4",
+    cover: "https://via.placeholder.com/600x400/000000/FFFFFF?text=Audio+Cover",
+    content: [
+        { start: 0, end: 3.5, en_segments: [{text:"I am honored to be with you today", type:"text"}], cn_text: "我很荣幸今天能和你们在一起" },
+        { start: 3.5, end: 7.0, en_segments: [{text:"at your ", type:"text"}, {text:"commencement", type:"keyword", note:"n. 毕业典礼; 开始", color:"#e74c3c"}, {text:" from one of the finest universities in the world.", type:"text"}], cn_text: "参加这所世界上最好大学之一的毕业典礼。" },
+        { start: 7.0, end: 12.0, en_segments: [{text:"I never graduated from college.", type:"text"}], cn_text: "我从未从大学毕业。" },
+        { start: 12.0, end: 16.5, en_segments: [{text:"Truth be told, this is the closest I've ever gotten to a college graduation.", type:"text"}], cn_text: "说实话，这是我离大学毕业最近的一次。" },
+        { start: 16.5, end: 20.0, en_segments: [{text:"Today I want to tell you three stories from my life.", type:"text"}], cn_text: "今天我想给你们讲三个我生活中的故事。" },
+        { start: 20.0, end: 25.0, en_segments: [{text:"That's it. No big deal. Just three stories.", type:"text"}], cn_text: "就这样。没什么大不了的。只是三个故事。" },
+        { start: 25.0, end: 30.0, en_segments: [{text:"The first story is about connecting the dots.", type:"text"}], cn_text: "第一个故事是关于串连生命中的点滴。" }
+    ]
+};
+
+createApp({
+    setup() {
+        // --- 状态变量 ---
+        const isLoading = ref(true);
+        const loadingText = ref('资源加载中...');
+        const isDemoMode = ref(false);
+        const toast = reactive({ show: false, msg: '' });
+        
+        const sentences = ref([]);
+        const currentIndex = ref(0);
+        const videoUrl = ref('');
+        const audioUrl = ref('');
+        const coverUrl = ref('');
+        const demoCover = "https://via.placeholder.com/400x300?text=No+Cover";
+        
+        // 播放器状态
+        const audioObj = new Audio();
+        const videoPlayer = ref(null);
+        const isPlaying = ref(false);
+        const currentTime = ref(0);
+        const duration = ref(1); // 避免除以0
+        const progressPercent = ref(0);
+        const isSeeking = ref(false);
+        
+        // 偏好设置
+        const themeIndex = ref(0);
+        const themeNames = ['简约白', '羊皮纸', '护眼绿', '深邃黑'];
+        
+        const showVideoMode = ref(false); // 视频模式开关
+        const useFixedSubtitleBar = ref(true); // 视频下方的固定字幕条
+        
+        const speedIndex = ref(2);
+        const playbackRates = [0.5, 0.8, 1.0, 1.25, 1.5, 2.0];
+        
+        const loopModeIndex = ref(0);
+        const loopModes = ['顺序播放', '单句循环', '单句×3', '跟读模式'];
+        
+        const displayModeIndex = ref(0); // 0:双语, 1:纯英, 2:遮盖, 3:无字
+        const displayModes = ['中英双语', '仅英文', '点击译文', '隐藏文本'];
+        const showCN = computed(() => displayModeIndex.value === 0 || displayModeIndex.value === 2);
+        const maskMode = computed(() => displayModeIndex.value === 2);
+        const revealedMap = ref({}); // 记录遮盖模式下哪些句子被点开了
+
+        const autoScrollMode = ref(true); // 是否自动跟随滚动
+        const showSettings = ref(false);
+
+        // 字体设置
+        const fonts = [
+            { name: '系统', value: '-apple-system, BlinkMacSystemFont, sans-serif' },
+            { name: '衬线', value: '"Georgia", serif' },
+            { name: '圆体', value: '"Varela Round", sans-serif' }
+        ];
+        const currentFontIndex = ref(0);
+        const fontSizes = [{class:'fs-small'}, {class:'fs-normal'}, {class:'fs-large'}, {class:'fs-xlarge'}];
+        const currentFontSizeIndex = ref(1);
+        const isBold = ref(false);
+
+        // 气泡逻辑
+        const popData = reactive({ show: false, text: '', note: '', style: {}, arrowStyle: {}, arrowPos: 'bottom' });
+        const currentNoteSegments = ref([]); // 视频画面上的注解
+
+        // 触控相关
+        let touchStartX = 0, touchStartY = 0;
+        let shadowTimer = null; // 跟读定时器
+
+        // --- 初始化 ---
+        onMounted(async () => {
+            // 从 localStorage 恢复设置
+            loadSettings();
+            
+            // 尝试加载云端数据 (模拟)
+            try {
+                // 这里模拟一个网络请求延迟
+                await new Promise(r => setTimeout(r, 800));
+                
+                // 假设获取不到真实数据，使用 Demo 数据
+                // 实际项目中请替换为真实的 Cloudbase 调用
+                throw new Error("Force Demo Mode");
+            } catch (e) {
+                console.warn("Using Demo Data", e);
+                loadData(DEMO_DATA);
+                isDemoMode.value = true;
+            } finally {
+                isLoading.value = false;
+            }
+
+            // 监听音频对象事件
+            audioObj.addEventListener('timeupdate', () => syncProgress(audioObj));
+            audioObj.addEventListener('ended', onChapterEnd);
+            audioObj.addEventListener('play', () => isPlaying.value = true);
+            audioObj.addEventListener('pause', () => isPlaying.value = false);
+            audioObj.addEventListener('loadedmetadata', () => duration.value = audioObj.duration);
+            
+            window.addEventListener('resize', () => popData.show = false);
+        });
+
+        const loadData = (data) => {
+            document.title = data.title;
+            sentences.value = data.content;
+            audioUrl.value = data.audio;
+            videoUrl.value = data.video;
+            coverUrl.value = data.cover;
+            
+            // 初始化音频源
+            audioObj.src = audioUrl.value;
+            // 如果有历史记录，可以跳到历史位置
+            updateSentenceIndex(0);
+        };
+
+        // --- 核心播放逻辑 ---
+        
+        // 获取当前活跃的媒体元素 (Video 或 Audio)
+        const getActiveMedia = () => {
+            return (showVideoMode.value && videoUrl.value && videoPlayer.value) ? videoPlayer.value : audioObj;
+        };
+
+        const togglePlay = () => {
+            const media = getActiveMedia();
+            if (media.paused) {
+                media.playbackRate = playbackRates[speedIndex.value];
+                media.play().catch(e => showToast('播放失败，请重试'));
+            } else {
+                media.pause();
+            }
+            showSettings.value = false;
+            popData.show = false;
+        };
+
+        const playAt = (index) => {
+            if (index < 0 || index >= sentences.value.length) return;
+            
+            // 清除之前的状态
+            clearTimeout(shadowTimer);
+            
+            // 切换句子
+            currentIndex.value = index;
+            const sent = sentences.value[index];
+            const media = getActiveMedia();
+            
+            // 稍作偏移，避免卡在上一句末尾
+            media.currentTime = sent.start + 0.01;
+            media.play();
+            
+            if (autoScrollMode.value) scrollToCenter(index);
+        };
+
+        const playPrev = () => playAt(currentIndex.value - 1);
+        const playNext = () => playAt(currentIndex.value + 1);
+
+        // 媒体时间更新 (核心同步)
+        const syncProgress = (media) => {
+            if (isSeeking.value) return; // 拖拽中不更新
+            
+            const t = media.currentTime;
+            const d = media.duration || 1;
+            currentTime.value = t;
+            duration.value = d;
+            progressPercent.value = (t / d) * 100;
+
+            // 查找当前句子
+            // 优化：先检查当前句子是否匹配，不匹配再全局搜
+            const curSent = sentences.value[currentIndex.value];
+            if (curSent && t >= curSent.start && t < curSent.end) {
+                // 还在当前句，检查循环逻辑
+                handleLoopLogic(media, curSent, t);
+            } else {
+                // 离开了当前句
+                const newIdx = sentences.value.findIndex(s => t >= s.start && t < s.end);
+                if (newIdx !== -1 && newIdx !== currentIndex.value) {
+                    updateSentenceIndex(newIdx);
+                    if (autoScrollMode.value) scrollToCenter(newIdx);
+                }
+            }
+        };
+
+        // 视频组件的事件代理
+        const onMediaTimeUpdate = (e) => syncProgress(e.target);
+        const onMediaStateChange = (playing) => isPlaying.value = playing;
+
+        // 循环/跟读逻辑控制
+        let loopCount = 0;
+        const handleLoopLogic = (media, sent, t) => {
+            const mode = loopModes[loopModeIndex.value];
+            
+            // 1. 单句循环
+            if (mode === '单句循环') {
+                if (t >= sent.end - 0.2) {
+                    media.currentTime = sent.start;
+                }
+            }
+            // 2. 单句x3
+            else if (mode === '单句×3') {
+                if (t >= sent.end - 0.2) {
+                    if (loopCount < 2) {
+                        media.currentTime = sent.start;
+                        loopCount++;
+                    } else {
+                        // 播放完3次，继续走，不需要代码干预，自然会滑到下一句
+                        // 但需要在进入下一句时重置 count (在 updateSentenceIndex 里做)
                     }
-                }); return segs;
-            });
+                }
+            }
+            // 3. 跟读模式 (影子跟读)
+            else if (mode === '跟读模式') {
+                if (t >= sent.end - 0.1 && !media.paused) {
+                    media.pause();
+                    const pauseTime = (sent.end - sent.start) * 1000 * 1.5; // 停顿1.5倍时长
+                    showToast('请跟读...');
+                    shadowTimer = setTimeout(() => {
+                        playNext();
+                    }, pauseTime);
+                }
+            }
+        };
 
-            // ✅ FIX: Moved all helper functions to the top of the scope
-            const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => toastMsg.value = '', 2000); };
-            const formatTime = (seconds) => { if (!seconds || isNaN(seconds)) return '00:00'; const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60); return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
-            const processMediaUrl = async (fileId) => {
-                if (!fileId) return '';
-                if (fileId.startsWith('http')) return fileId;
-                if (fileId.startsWith('cloud://')) {
-                    try {
-                        const res = await tcbApp.value.getTempFileURL({ fileList: [fileId] });
-                        return res.fileList?.[0]?.tempFileURL || '';
-                    } catch (e) { console.error('转换云链接失败', e); return ''; }
-                } return fileId;
-            };
-
-            // --- Core Methods ---
-            const getActiveMedia = () => settings.showVideoMode && chapterData.videoUrl ? videoPlayer.value : audioObj;
+        const updateSentenceIndex = (idx) => {
+            currentIndex.value = idx;
+            loopCount = 0; // 重置循环计数
             
-            const init = async () => {
-                restoreSettings();
-                const params = new URLSearchParams(window.location.search);
-                chapterData.bookId = params.get('bookId'); chapterData.chapterId = params.get('chapterId');
-                const user = localStorage.getItem('web_user_id') || 'guest_' + Math.random().toString(36).substr(2, 6);
-                localStorage.setItem('web_user_id', user); watermarkId.value = 'User: ' + user.substr(-6);
-                if (!chapterData.chapterId) { showToast('缺少章节ID'); isLoading.value = false; return; }
-                try {
-                    // ⚠️⚠️⚠️ Replace with your CloudBase Env ID
-                    tcbApp.value = window.cloudbase.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
-                    const auth = tcbApp.value.auth({ persistence: 'local' });
-                    if (!auth.hasLoginState()) await auth.signInAnonymously();
-                    db.value = tcbApp.value.database();
-                    await loadChapterData(); // Ensure this completes before finishing init
-                } catch (e) { console.error('Cloud Init Error:', e); showToast('云服务初始化失败'); isLoading.value = false; }
-            };
+            // 提取视频注解
+            const s = sentences.value[idx];
+            if (s && s.en_segments) {
+                // 简单的去重提取 note
+                const notes = [];
+                s.en_segments.forEach(seg => {
+                    if (seg.type === 'keyword' && seg.note) {
+                        const parts = seg.note.split(/[:：]/);
+                        notes.push({ 
+                            prefix: parts[0] || seg.text, 
+                            suffix: parts[1] || '',
+                            note: seg.note,
+                            fullText: seg.text
+                        });
+                    }
+                });
+                currentNoteSegments.value = notes;
+            } else {
+                currentNoteSegments.value = [];
+            }
+        };
 
-            const loadChapterData = async () => {
-                isLoading.value = true;
-                try {
-                    const res = await tcbApp.value.callFunction({ name: 'adminHelper', data: { action: 'getChapter', chapterId: chapterData.chapterId } });
-                    if (!res.result || !res.result.success) { showToast(res.result.msg || '加载失败'); return; }
-                    const data = res.result.data;
-                    document.title = data.title;
-                    chapterData.title = data.title;
-                    chapterData.sentences = data.content;
-                    chapterData.nextChapterId = data.nextId || '';
-                    chapterData.audioUrl = await processMediaUrl(data.audio_url);
-                    chapterData.videoUrl = await processMediaUrl(data.video_url);
-                    chapterData.coverUrl = await processMediaUrl(data.cover_url);
-                    const key = `${chapterData.bookId}_${chapterData.chapterId}`;
-                    const savedIdx = parseInt(localStorage.getItem(PROGRESS_KEY + '_' + key) || '0');
-                    playerState.currentIndex = savedIdx >= chapterData.sentences.length ? 0 : savedIdx;
-                    updateCurrentSentenceData(playerState.currentIndex);
-                    nextTick(() => scrollToCenter(playerState.currentIndex));
-                } catch (e) { console.error(e); showToast('网络错误'); } 
-                finally { isLoading.value = false; }
-            };
-            
-            const togglePlay = () => { /* ... (Identical to previous stable version) ... */ };
-            const playAt = (index, autoScroll = true) => { /* ... (Identical to previous stable version) ... */ };
-            const onMediaTimeUpdate = (e) => { /* ... (Identical to previous stable version) ... */ };
-            const onMediaLoaded = (e) => { /* ... (Identical to previous stable version) ... */ };
-            const showNote = (seg, event, sentIdx, source) => { /* ... (Identical to previous stable version) ... */ };
-            const onScroll = () => { if (showPop.value) showPop.value = false; };
-            const handleKeydown = (e) => { if (e.target.tagName === 'INPUT') return; switch(e.code) { case 'Space': e.preventDefault(); togglePlay(); break; case 'ArrowRight': e.preventDefault(); playNext(); break; case 'ArrowLeft': e.preventDefault(); playPrev(); break; }};
+        // --- UI 交互逻辑 ---
 
-            // --- Lifecycle ---
-            onMounted(() => {
-                init();
-                audioObj.addEventListener('timeupdate', onMediaTimeUpdate); audioObj.addEventListener('ended', onMediaEnded); audioObj.addEventListener('play', onMediaPlay); audioObj.addEventListener('pause', onMediaPause); audioObj.addEventListener('loadedmetadata', onMediaLoaded);
-                window.addEventListener('keydown', handleKeydown);
+        // 修复：完美的平滑滚动
+        const scrollToCenter = (index) => {
+            nextTick(() => {
+                const el = document.getElementById('sent-' + index);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             });
-            onUnmounted(() => {
-                audioObj.removeEventListener('timeupdate', onMediaTimeUpdate); audioObj.removeEventListener('ended', onMediaEnded); audioObj.removeEventListener('play', onMediaPlay); audioObj.removeEventListener('pause', onMediaPause); audioObj.removeEventListener('loadedmetadata', onMediaLoaded);
-                window.removeEventListener('keydown', handleKeydown);
-                audioObj.pause(); audioObj.src = '';
-            });
+        };
 
-            // --- Return block (all functions that don't need re-typing) ---
-            const playPrev = () => playAt(playerState.currentIndex - 1);
-            const playNext = () => { if (playerState.currentIndex >= chapterData.sentences.length - 1) { handleChapterEnd(); } else { playAt(playerState.currentIndex + 1); } };
-            const handleChapterEnd = () => { const mode = settings.chapterEndMode; if (mode === 0) { getActiveMedia()?.pause(); } else if (mode === 1) { if (chapterData.nextChapterId) { showToast('即将跳转下一章'); setTimeout(() => { window.location.href = `?bookId=${chapterData.bookId}&chapterId=${chapterData.nextChapterId}`; }, 1000); } else { showToast('已是最后一章'); } } else if (mode === 2) { playAt(0); } };
-            const onMediaPlay = () => isPlaying.value = true;
-            const onMediaPause = () => isPlaying.value = false;
-            const onMediaEnded = handleChapterEnd;
-            const updateCurrentSentenceData = (index) => { playerState.currentIndex = index; };
-            const saveSettings = () => { localStorage.setItem(SETTING_KEY, JSON.stringify(settings)); };
-            const restoreSettings = () => { const s = JSON.parse(localStorage.getItem(SETTING_KEY) || '{}'); Object.assign(settings, s); };
-            const toggleVideoMode = () => { settings.showVideoMode = !settings.showVideoMode; saveSettings(); };
-            const toggleFixedSubtitleBar = () => { settings.useFixedSubtitleBar = !settings.useFixedSubtitleBar; saveSettings(); };
-            const cyclePlaybackRate = () => { settings.rateIndex = (settings.rateIndex + 1) % playbackRates.length; saveSettings(); if(getActiveMedia()) getActiveMedia().playbackRate = playbackRates[settings.rateIndex]; };
-            const cyclePlayMode = () => { settings.playMode = (settings.playMode + 1) % playModes.length; saveSettings(); showToast(playModes[settings.playMode]); };
-            const cycleDisplayMode = () => { settings.displayMode = (settings.displayMode + 1) % displayModes.length; revealedMap.value = {}; saveSettings(); };
-            const cycleChapterEndMode = () => { settings.chapterEndMode = (settings.chapterEndMode + 1) % chapterEndModes.length; saveSettings(); };
-            const cycleTheme = () => { settings.themeIndex = (settings.themeIndex + 1) % themeNames.length; saveSettings(); };
-            const cycleFont = () => { settings.fontIndex = (settings.fontIndex + 1) % fonts.length; saveSettings(); };
-            const cycleFontSize = () => { settings.fontSizeIndex = (settings.fontSizeIndex + 1) % fontSizes.length; saveSettings(); };
-            const toggleReadingMode = () => { settings.readingModeType = (settings.readingModeType + 1) % 3; saveSettings(); showToast(['听书', '滑动', '阅读'][settings.readingModeType]); };
-            const addToVocabulary = () => { if (!currentNoteData.value) { showToast('无法收藏: 数据丢失'); return; } const { text, note, sentIdx } = currentNoteData.value; const sent = chapterData.sentences[sentIdx]; if (!db.value) { showToast('数据库连接失败'); return; } db.value.collection('vocabulary').add({ english: text, chinese: note, bookId: chapterData.bookId, chapterId: chapterData.chapterId, contextEn: sent ? sent.en_segments.map(s=>s.text).join('') : '', contextCn: sent ? sent.cn_text : '', createTime: db.value.serverDate() }).then(() => { showToast('收藏成功'); showPop.value = false; }).catch(err => { console.error('收藏失败:', err); showToast('收藏失败: 权限不足或重复'); }); };
-            const saveProgress = (idx) => { const key = `${chapterData.bookId}_${chapterData.chapterId}`; localStorage.setItem(PROGRESS_KEY + '_' + key, idx); };
-            const handleContainerTap = (e, index) => { playAt(index, false); };
-            const onContainerClick = () => { showPop.value = false; showSettingsPopup.value = false; };
-            const toggleSettingsPopup = () => { showSettingsPopup.value = !showSettingsPopup.value; };
-            const scrollToCenter = (index) => { nextTick(() => { const el = document.getElementById('sent-' + index); const container = document.querySelector('.content-area'); if (el && container) { const top = el.offsetTop - container.offsetTop - (container.clientHeight / 2) + (el.clientHeight / 2); container.scrollTo({ top: top, behavior: 'smooth' }); } }); };
-            const toggleReveal = (index) => { if (maskMode.value || hideAllText.value) { revealedMap.value[index] = !revealedMap.value[index]; } };
-            const handleTouchStart = (e) => { /* ... */ }; const handleTouchEnd = (e) => { /* ... */ };
-            const onSliderChange = (e) => { const val = e.target.value; const media = getActiveMedia(); if (media && progress.durationSeconds) { const targetTime = (val / 100) * progress.durationSeconds; media.currentTime = targetTime; } isDragging.value = false; };
-            const onSliderChanging = () => isDragging.value = true;
-            const handleOverlayNoteClick = (item) => { /* ... */ };
+        // 修复：无缝切换音视频
+        const toggleVideoMode = () => {
+            const oldMedia = getActiveMedia();
+            const wasPlaying = !oldMedia.paused;
+            const time = oldMedia.currentTime;
             
-            return {
-                isLoading, toastMsg, watermarkId, settings, chapterData, playerState,
-                progress, isPlaying, isDragging, videoPlayer, revealedMap, currentNoteSegments,
-                showSettingsPopup, showPop, popover, clickSource, isFullScreen,
-                showCN, maskMode, hideAllText,
-                themeNames, playbackRates, playModes, displayModes, chapterEndModes, fonts, fontSizes,
-                onMediaTimeUpdate, onMediaLoaded, onMediaEnded, onMediaPlay, onMediaPause,
-                togglePlay, playPrev, playNext, toggleReadingMode,
-                toggleVideoMode, toggleFixedSubtitleBar, cyclePlaybackRate, cyclePlayMode, cycleDisplayMode, cycleChapterEndMode, cycleTheme, cycleFont, cycleFontSize, toggleSettingsPopup,
-                handleContainerTap, onContainerClick, showNote, handleOverlayNoteClick, addToVocabulary, toggleReveal,
-                handleTouchStart, handleTouchEnd, onScroll, onSliderChange, onSliderChanging
+            oldMedia.pause();
+            showVideoMode.value = !showVideoMode.value;
+            saveSettings();
+
+            nextTick(() => {
+                const newMedia = getActiveMedia();
+                newMedia.currentTime = time;
+                newMedia.playbackRate = playbackRates[speedIndex.value];
+                if (wasPlaying) newMedia.play();
+                
+                // 如果开启视频，自动滚到顶部看视频
+                if (showVideoMode.value) {
+                   document.querySelector('.content-area')?.scrollTo({top:0, behavior:'smooth'});
+                } else {
+                   scrollToCenter(currentIndex.value);
+                }
+            });
+        };
+
+        // 修复：智能气泡定位
+        const showPopover = (seg, event, source) => {
+            // 如果是点击视频里的浮层，先暂停
+            getActiveMedia().pause();
+            
+            const text = seg.text || seg.fullText || seg.prefix;
+            const note = seg.note || seg.suffix; // 兼容不同结构
+            
+            popData.text = text;
+            popData.note = note;
+            popData.show = true;
+            
+            nextTick(() => {
+                const rect = event.target.getBoundingClientRect();
+                const popEl = document.querySelector('.popover');
+                if (!popEl) return;
+                
+                const popWidth = popEl.offsetWidth;
+                const popHeight = popEl.offsetHeight;
+                const screenW = window.innerWidth;
+                
+                // 1. 水平定位 (防止溢出)
+                let left = rect.left + (rect.width / 2) - (popWidth / 2);
+                if (left < 10) left = 10;
+                else if (left + popWidth > screenW - 10) left = screenW - popWidth - 10;
+                
+                // 2. 箭头水平定位 (相对于 Popover)
+                // 箭头的中心点应该对齐 rect 的中心点
+                let arrowLeft = (rect.left + rect.width / 2) - left - 6; // 6是border宽度
+                
+                // 3. 垂直定位
+                let top = rect.top - popHeight - 12;
+                let arrowPos = 'bottom';
+                
+                // 如果上方空间不足，改在下方显示
+                if (top < 50) { 
+                    top = rect.bottom + 12;
+                    arrowPos = 'top';
+                }
+
+                popData.style = { top: top + 'px', left: left + 'px' };
+                popData.arrowStyle = { left: arrowLeft + 'px' };
+                popData.arrowPos = arrowPos;
+            });
+        };
+
+        // 进度条拖拽
+        const onSeekInput = (e) => {
+            isSeeking.value = true;
+            const pct = e.target.value;
+            progressPercent.value = pct;
+            currentTime.value = (pct / 100) * duration.value;
+        };
+        const onSeekChange = (e) => {
+            const pct = e.target.value;
+            const media = getActiveMedia();
+            if (media && duration.value) {
+                media.currentTime = (pct / 100) * duration.value;
+            }
+            // 稍微延迟释放锁，防止timeupdate跳回
+            setTimeout(() => { isSeeking.value = false; }, 200);
+        };
+
+        // 触控滑动翻页
+        const handleTouchStart = (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        };
+        const handleTouchEnd = (e) => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            
+            // 优化：只有横向移动明显大于纵向移动时才触发，防止滚动时误触
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
+                if (dx < 0) playNext();
+                else playPrev();
+            }
+        };
+
+        // --- 辅助功能 ---
+        const onChapterEnd = () => {
+            isPlaying.value = false;
+            showToast('本章结束');
+        };
+
+        const toggleScrollMode = () => {
+            autoScrollMode.value = !autoScrollMode.value;
+            if (autoScrollMode.value) scrollToCenter(currentIndex.value);
+            showToast(autoScrollMode.value ? '已开启自动滚屏' : '已切换手动滚动');
+        };
+
+        const addToBook = () => {
+            showToast('已加入生词本 (模拟)');
+            popData.show = false;
+        };
+
+        const toggleReveal = (idx) => {
+            if (maskMode.value) {
+                revealedMap.value[idx] = !revealedMap.value[idx];
+            }
+        };
+
+        const cycleSpeed = () => {
+            speedIndex.value = (speedIndex.value + 1) % playbackRates.length;
+            getActiveMedia().playbackRate = playbackRates[speedIndex.value];
+            saveSettings();
+        };
+        const cycleLoop = () => { loopModeIndex.value = (loopModeIndex.value + 1) % loopModes.length; saveSettings(); };
+        const cycleDisplay = () => { displayModeIndex.value = (displayModeIndex.value + 1) % displayModes.length; revealedMap.value = {}; saveSettings(); };
+        const cycleTheme = () => { themeIndex.value = (themeIndex.value + 1) % themeNames.length; saveSettings(); };
+        const cycleFont = () => { currentFontIndex.value = (currentFontIndex.value + 1) % fonts.length; saveSettings(); };
+
+        const formatTime = (s) => {
+            if (!s || isNaN(s)) return '00:00';
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec.toString().padStart(2, '0')}`;
+        };
+
+        const showToast = (msg) => {
+            toast.msg = msg;
+            toast.show = true;
+            setTimeout(() => toast.show = false, 2000);
+        };
+
+        // 本地存储
+        const SETTING_KEY = 'web_reader_pref_v2';
+        const saveSettings = () => {
+            const s = {
+                theme: themeIndex.value,
+                video: showVideoMode.value,
+                speed: speedIndex.value,
+                loop: loopModeIndex.value,
+                display: displayModeIndex.value,
+                font: currentFontIndex.value
             };
-        }
-    }).mount('#app');
+            localStorage.setItem(SETTING_KEY, JSON.stringify(s));
+        };
+        const loadSettings = () => {
+            try {
+                const s = JSON.parse(localStorage.getItem(SETTING_KEY));
+                if (s) {
+                    if (s.theme !== undefined) themeIndex.value = s.theme;
+                    if (s.video !== undefined) showVideoMode.value = s.video;
+                    if (s.speed !== undefined) speedIndex.value = s.speed;
+                    if (s.loop !== undefined) loopModeIndex.value = s.loop;
+                    if (s.display !== undefined) displayModeIndex.value = s.display;
+                    if (s.font !== undefined) currentFontIndex.value = s.font;
+                }
+            } catch(e){}
+        };
+
+        const onContainerClick = () => {
+            popData.show = false;
+            showSettings.value = false;
+        };
+
+        // 返回 setup 对象
+        return {
+            isLoading, loadingText, isDemoMode, toast,
+            watermarkText: 'Web Reader Pro',
+            sentences, currentIndex, videoUrl, coverUrl, demoCover,
+            showVideoMode, useFixedSubtitleBar,
+            audioObj, videoPlayer, isPlaying, currentTime, duration, progressPercent, isSeeking,
+            themeIndex, themeNames, fontSizes, currentFontSizeIndex, fonts, currentFontIndex, isBold,
+            playbackRates, speedIndex, loopModes, loopModeIndex, displayModes, displayModeIndex,
+            showCN, maskMode, revealedMap, autoScrollMode, showSettings,
+            popData, currentNoteSegments,
+            
+            // 方法
+            togglePlay, playPrev, playNext, playAt,
+            onMediaTimeUpdate, onMediaStateChange, onChapterEnd,
+            toggleVideoMode, cycleSpeed, cycleLoop, cycleDisplay, cycleTheme, cycleFont,
+            onSeekInput, onSeekChange,
+            handleTouchStart, handleTouchEnd,
+            scrollToCenter, toggleScrollMode,
+            showPopover, addToBook, toggleReveal,
+            onContainerClick, onListScroll: () => {}, formatTime
+        };
+    }
+}).mount('#app');
 </script>
 </body>
 </html>
