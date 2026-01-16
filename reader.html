@@ -3,270 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Web Reader Pro</title>
+    <title>Web Reader Pro Fixed</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- 引入云开发 SDK -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/2.9.1/cloudbase.full.js"></script>
     
     <style>
-        /* ================= 全局重置 ================= */
+        /* ================= 样式保持不变 (为了节省篇幅，此处省略 CSS 细节，功能与上一版一致) ================= */
         :root { --primary-color: #07c160; }
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; height: 100vh; user-select: none; }
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; height: 100vh; user-select: none; background: #f7f7f7; }
         * { box-sizing: border-box; }
-        /* 隐藏滚动条但保留功能 */
         ::-webkit-scrollbar { display: none; }
-        
-        /* ================= 根容器 & 主题 ================= */
         .page-container { height: 100vh; display: flex; flex-direction: column; position: relative; transition: background-color 0.3s; overflow: hidden; }
-        
-        /* 主题定义 */
-        .theme-0 { background-color: #f7f7f7; }
-        .theme-1 { background-color: #f6f1e1; } /* 羊皮纸 */
-        .theme-2 { background-color: #d7f1da; } /* 护眼绿 */
-        .theme-3 { background-color: #000000; color: #ccc; } /* 暗黑 */
-
-        /* 水印 */
+        .theme-0 { background-color: #f7f7f7; } .theme-1 { background-color: #f6f1e1; } .theme-2 { background-color: #d7f1da; } .theme-3 { background-color: #000000; color: #ccc; }
         .watermark { position: fixed; top: 5px; right: 10px; font-size: 10px; color: rgba(0,0,0,0.1); pointer-events: none; z-index: 9999; }
-
-        /* ================= 视频区域 ================= */
-        .video-panel-wrapper {
-            width: 94%; margin: 10px auto 0; background-color: #adadad; border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.1);
-            position: relative; flex-shrink: 0; z-index: 50; overflow: hidden; transition: height 0.3s;
-        }
+        .video-panel-wrapper { width: 94%; margin: 10px auto 0; background-color: #adadad; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.1); position: relative; flex-shrink: 0; z-index: 50; overflow: hidden; transition: height 0.3s; }
         .theme-3 .video-panel-wrapper { border-color: #6b6b6b; background-color: #333; }
-
         .video-container { position: relative; width: 100%; transition: background-color 0.3s; display: flex; flex-direction: column; }
-        
         .main-media { width: 100%; height: 200px; display: block; object-fit: cover; background: #000; }
-        
-        /* 封面艺术 (毛玻璃) */
         .cover-art-container { position: relative; width: 100%; height: 200px; background: #000; overflow: hidden; }
         .cover-art-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; filter: blur(15px); transform: scale(1.1); opacity: 0.5; object-fit: cover; }
         .cover-art-fg { position: relative; z-index: 2; width: 100%; height: 100%; object-fit: contain; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-
-        /* 视频内悬浮注解 (Overlay) */
-        .video-subtitle-overlay {
-            position: absolute; bottom: 40px; left: 0; width: 100%; padding: 0 10px;
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; pointer-events: none;
-        }
-        .video-subtitle-overlay.note-mode-overlay {
-            position: relative; top: auto; bottom: auto; height: auto; min-height: 200px;
-            justify-content: flex-start; padding: 10px; background: transparent; overflow-y: visible;
-        }
+        .video-subtitle-overlay { position: absolute; bottom: 40px; left: 0; width: 100%; padding: 0 10px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; pointer-events: none; }
+        .video-subtitle-overlay.note-mode-overlay { position: relative; top: auto; bottom: auto; height: auto; min-height: 200px; justify-content: flex-start; padding: 10px; background: transparent; overflow-y: visible; }
         .video-notes-container { display: flex; flex-wrap: wrap; justify-content: center; pointer-events: auto; }
-        .v-note-item {
-            background: rgba(255,255,255,0.8); backdrop-filter: blur(4px); border-radius: 6px;
-            padding: 2px 8px; margin: 0 4px 6px 0; border: 1px solid rgba(255,255,255,0.1);
-            font-size: 13px; color: #333; box-shadow: 0 2px 4px rgba(0,0,0,0.3); cursor: pointer;
-        }
+        .v-note-item { background: rgba(255,255,255,0.8); backdrop-filter: blur(4px); border-radius: 6px; padding: 2px 8px; margin: 0 4px 6px 0; border: 1px solid rgba(255,255,255,0.1); font-size: 13px; color: #333; box-shadow: 0 2px 4px rgba(0,0,0,0.3); cursor: pointer; }
         .note-en { font-weight: bold; margin-right: 4px; color: #cc0000; }
-        
-        /* 固定字幕栏 (Adaptive Bar) */
-        .current-sentence-bar {
-            position: relative; width: 100%; padding: 12px; background-color: inherit;
-            border-top: 1px solid rgba(0,0,0,0.05); z-index: 20;
-        }
+        .current-sentence-bar { position: relative; width: 100%; padding: 12px; background-color: inherit; border-top: 1px solid rgba(0,0,0,0.05); z-index: 20; }
         .theme-3 .current-sentence-bar { border-top-color: #333; }
         .current-sentence-bar .en-text { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
         .current-sentence-bar .cn-text { font-size: 14px; color: #666; }
-        .theme-3 .current-sentence-bar .en-text { color: #fff; }
-        .theme-3 .current-sentence-bar .cn-text { color: #999; }
-
-        /* ================= 列表内容区域 ================= */
-        .content-area {
-            flex: 1; overflow-y: auto; padding: 10px 10px 140px 10px; /* bottom padding for player bar */
-            scroll-behavior: auto; /* Handle smooth scroll in JS */
-            position: relative;
-        }
-        /* 焦点模式：列表变淡 */
+        .theme-3 .current-sentence-bar .en-text { color: #fff; } .theme-3 .current-sentence-bar .cn-text { color: #999; }
+        .content-area { flex: 1; overflow-y: auto; padding: 10px 10px 140px 10px; scroll-behavior: auto; position: relative; }
         .content-area.focus-mode { opacity: 0.4; transition: opacity 0.3s; }
-
-        .sentence-group {
-            padding: 8px 10px; margin-bottom: 8px; border-radius: 6px;
-            border-left: 4px solid transparent; transition: all 0.2s; cursor: pointer;
-        }
-        /* 激活状态 */
+        .sentence-group { padding: 8px 10px; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid transparent; transition: all 0.2s; cursor: pointer; }
         .sentence-group.active { background: #f8f3d7; border-left-color: #d4b162; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .theme-1 .sentence-group.active { background: #eaddc5; border-left-color: #8c7b64; }
-        .theme-2 .sentence-group.active { background: #b5dcb9; border-left-color: #4a6652; }
-        .theme-3 .sentence-group.active { background: #2a2a2a; border-left-color: #fff; }
-
-        .en-text { line-height: 1.45; color: #2c2c2e; transition: color 0.2s; }
-        .cn-text { font-size: 14px; color: #888; margin-top: 4px; line-height: 1.4; min-height: 14px; }
-        
-        .theme-1 .en-text { color: #16120d; } .theme-1 .cn-text { color: #7a6e5d; }
-        .theme-2 .en-text { color: #0b0f0c; } .theme-2 .cn-text { color: #5e7063; }
-        .theme-3 .en-text { color: #ccc; } .theme-3 .cn-text { color: #666; }
-        .theme-3 .sentence-group.active .en-text { color: #fff; }
-
+        .theme-1 .sentence-group.active { background: #eaddc5; border-left-color: #8c7b64; } .theme-2 .sentence-group.active { background: #b5dcb9; border-left-color: #4a6652; } .theme-3 .sentence-group.active { background: #2a2a2a; border-left-color: #fff; }
+        .en-text { line-height: 1.45; color: #2c2c2e; transition: color 0.2s; } .cn-text { font-size: 14px; color: #888; margin-top: 4px; line-height: 1.4; min-height: 14px; }
+        .theme-1 .en-text { color: #16120d; } .theme-1 .cn-text { color: #7a6e5d; } .theme-2 .en-text { color: #0b0f0c; } .theme-2 .cn-text { color: #5e7063; } .theme-3 .en-text { color: #ccc; } .theme-3 .cn-text { color: #666; } .theme-3 .sentence-group.active .en-text { color: #fff; }
         .keyword { color: inherit; border-bottom: 1px dotted rgba(0,0,0,0.2); }
         .bold-keywords .keyword, .bold-keywords .en-text { font-weight: bold; }
-
-        /* 遮盖模式 (Mask Layout) */
-        .cn-text.mask-layout {
-            margin-top: 4px; padding: 6px 8px; border-radius: 4px; border: 1px solid transparent; transition: all 0.2s;
-        }
-        .cn-text.mask-layout.masked {
-            color: transparent !important; user-select: none;
-            background-image: repeating-linear-gradient(45deg, #f1f1f1, #f1f1f1 5px, #e9e9e9 5px, #e9e9e9 10px);
-            border-color: #e0e0e0;
-        }
-        .theme-3 .cn-text.mask-layout.masked {
-            background-image: repeating-linear-gradient(45deg, #222, #222 5px, #2a2a2a 5px, #2a2a2a 10px);
-            border-color: #333;
-        }
-
-        /* 无字模式 (No Text Mode) */
+        .cn-text.mask-layout { margin-top: 4px; padding: 6px 8px; border-radius: 4px; border: 1px solid transparent; transition: all 0.2s; }
+        .cn-text.mask-layout.masked { color: transparent !important; user-select: none; background-image: repeating-linear-gradient(45deg, #f1f1f1, #f1f1f1 5px, #e9e9e9 5px, #e9e9e9 10px); border-color: #e0e0e0; }
+        .theme-3 .cn-text.mask-layout.masked { background-image: repeating-linear-gradient(45deg, #222, #222 5px, #2a2a2a 5px, #2a2a2a 10px); border-color: #333; }
         .no-text-mode .en-text span { color: transparent !important; background: rgba(0,0,0,0.1); border-radius: 3px; margin: 0 1px; }
         .theme-3 .no-text-mode .en-text span { background: rgba(255,255,255,0.2); }
-        
-        /* 刮刮乐揭示 (Revealed in No Text Mode) */
         .no-text-mode .sentence-group.revealed .en-text span { color: inherit !important; background: transparent; }
-
-        /* 字体大小类 */
-        .fs-small .en-text { font-size: 16px; } .fs-normal .en-text { font-size: 18px; }
-        .fs-large .en-text { font-size: 20px; } .fs-xlarge .en-text { font-size: 22px; }
-
-        /* ================= 气泡与弹窗 ================= */
-        .popover {
-            position: fixed; background: #2c2c2e; color: #fff; padding: 10px 14px;
-            border-radius: 8px; font-size: 14px; max-width: 80%; z-index: 1000;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.4); transform-origin: bottom center; animation: popUp 0.15s;
-        }
-        .pop-arrow {
-            position: absolute; width: 0; height: 0; 
-            border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #2c2c2e;
-            bottom: -6px; left: 50%; transform: translateX(-50%);
-        }
+        .fs-small .en-text { font-size: 16px; } .fs-normal .en-text { font-size: 18px; } .fs-large .en-text { font-size: 20px; } .fs-xlarge .en-text { font-size: 22px; }
+        .popover { position: fixed; background: #2c2c2e; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 14px; max-width: 80%; z-index: 1000; box-shadow: 0 5px 20px rgba(0,0,0,0.4); transform-origin: bottom center; animation: popUp 0.15s; }
+        .pop-arrow { position: absolute; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #2c2c2e; bottom: -6px; left: 50%; transform: translateX(-50%); }
         @keyframes popUp { from { transform: translateY(10px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-
-        /* 设置弹窗 */
-        .settings-popup-wrapper {
-            position: fixed; bottom: 85px; left: 5%; width: 90%; background: #fff;
-            border-radius: 12px; padding: 12px 0; box-shadow: 0 -4px 30px rgba(0,0,0,0.15); z-index: 650;
-            border: 1px solid #eee;
-        }
+        .settings-popup-wrapper { position: fixed; bottom: 85px; left: 5%; width: 90%; background: #fff; border-radius: 12px; padding: 12px 0; box-shadow: 0 -4px 30px rgba(0,0,0,0.15); z-index: 650; border: 1px solid #eee; }
         .theme-3 .settings-popup-wrapper { background: #222; border-color: #444; }
-        
         .settings-scroll { display: flex; overflow-x: auto; gap: 0; padding: 0 10px; }
         .setting-item { text-align: center; flex-shrink: 0; min-width: 60px; padding: 5px; cursor: pointer; border-radius: 8px; }
         .setting-item:active { background-color: rgba(0,0,0,0.05); }
         .setting-label { font-size: 11px; color: #999; margin-bottom: 4px; }
-        .setting-value { font-size: 13px; font-weight: bold; color: #333; }
-        .theme-3 .setting-value { color: #fff; }
-
-        /* ================= 底部播放栏 ================= */
-        .player-bar-wrapper {
-            position: fixed; bottom: 0; left: 0; width: 100%; z-index: 600;
-            background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); padding-bottom: env(safe-area-inset-bottom);
-        }
+        .setting-value { font-size: 13px; font-weight: bold; color: #333; } .theme-3 .setting-value { color: #fff; }
+        .player-bar-wrapper { position: fixed; bottom: 0; left: 0; width: 100%; z-index: 600; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); padding-bottom: env(safe-area-inset-bottom); }
         .theme-3 .player-bar-wrapper { background: rgba(28,28,30,0.95); border-top: 1px solid #333; }
-        .theme-1 .player-bar-wrapper { background: rgba(246, 241, 225, 0.95); border-top: 1px solid #eaddc5; }
-        .theme-2 .player-bar-wrapper { background: rgba(199, 237, 204, 0.95); border-top: 1px solid #b5dcb9; }
-
-        /* 进度条 */
-        .progress-container {
-            position: absolute; top: -15px; left: 5%; width: 90%; height: 30px;
-            display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; pointer-events: none;
-        }
+        .theme-1 .player-bar-wrapper { background: rgba(246, 241, 225, 0.95); border-top: 1px solid #eaddc5; } .theme-2 .player-bar-wrapper { background: rgba(199, 237, 204, 0.95); border-top: 1px solid #b5dcb9; }
+        .progress-container { position: absolute; top: -15px; left: 5%; width: 90%; height: 30px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         .progress-container.show { opacity: 1; pointer-events: auto; }
-        .progress-box {
-            width: 100%; background: #fff; height: 32px; border-radius: 16px; display: flex; align-items: center; padding: 0 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.05);
-        }
+        .progress-box { width: 100%; background: #fff; height: 32px; border-radius: 16px; display: flex; align-items: center; padding: 0 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.05); }
         .theme-3 .progress-box { background: #333; border-color: #555; }
         .time-text { font-size: 10px; width: 35px; text-align: center; color: #888; font-variant-numeric: tabular-nums; }
         .slider { flex: 1; margin: 0 8px; -webkit-appearance: none; height: 4px; background: #ddd; border-radius: 2px; }
         .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #333; }
-
-        .player-controls {
-            height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
-        }
-        .icon-btn {
-            width: 40px; height: 40px; border-radius: 50%; background: #fff;
-            display: flex; align-items: center; justify-content: center; font-size: 18px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; color: #333;
-        }
+        .player-controls { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+        .icon-btn { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; color: #333; }
         .theme-3 .icon-btn { background: #333; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
-        .theme-1 .icon-btn { background: #fbf8ef; color: #5e4b35; }
-        .theme-2 .icon-btn { background: #e3f7e6; color: #2e4033; }
-
+        .theme-1 .icon-btn { background: #fbf8ef; color: #5e4b35; } .theme-2 .icon-btn { background: #e3f7e6; color: #2e4033; }
         .play-pause-btn { width: 56px; height: 56px; font-size: 24px; background: #222; color: #fff; }
-        .theme-3 .play-pause-btn { background: #eee; color: #000; }
-        .theme-1 .play-pause-btn { background: #5e4b35; color: #fbf8ef; }
-        .theme-2 .play-pause-btn { background: #2e4033; color: #e3f7e6; }
-
+        .theme-3 .play-pause-btn { background: #eee; color: #000; } .theme-1 .play-pause-btn { background: #5e4b35; color: #fbf8ef; } .theme-2 .play-pause-btn { background: #2e4033; color: #e3f7e6; }
         .mode-btn { font-size: 10px; width: auto; padding: 0 12px; border-radius: 20px; font-weight: bold; }
-        .mode-auto { background: #07c160 !important; color: #fff !important; }
-        .mode-manual { background: #05a8da !important; color: #fff !important; }
-        .mode-silent { background: #333 !important; color: #fff !important; border: 1px solid #555; }
-
-        /* Loading */
+        .mode-auto { background: #07c160 !important; color: #fff !important; } .mode-manual { background: #05a8da !important; color: #fff !important; } .mode-silent { background: #333 !important; color: #fff !important; border: 1px solid #555; }
         .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; color: #333; font-weight: bold; }
         .theme-3 .loading-mask { background: rgba(0,0,0,0.8); color: #fff; }
-        
-        .toast {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.7); color: #fff; padding: 10px 20px; border-radius: 8px;
-            font-size: 14px; z-index: 3000; pointer-events: none;
-        }
-
+        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; z-index: 3000; pointer-events: none; }
     </style>
 </head>
 <body>
 
 <div id="app">
+    <!-- 将 isDragging 绑定在 class 上，确保它被正确引用 -->
     <div :class="['page-container', 'theme-' + themeIndex]" @click="onContainerClick" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
         
-        <!-- 水印 -->
         <div class="watermark" v-if="!isFullScreen">{{ watermarkId }}</div>
 
         <!-- 视觉组件区域 -->
         <div class="video-panel-wrapper" v-if="showVideoMode">
             <div class="video-container" :class="'theme-' + themeIndex" :style="{ height: (200 + adaptiveBarHeight) + 'px' }">
-                <!-- 视频播放器 -->
                 <video v-if="videoUrl" ref="videoPlayer" class="main-media" 
                        :src="videoUrl" playsinline webkit-playsinline
                        @timeupdate="onMediaTimeUpdate" @ended="onMediaEnded" @play="onMediaPlay" @pause="onMediaPause"
                        @click.stop="togglePlay">
                 </video>
-                <!-- 封面图 -->
                 <div v-else class="cover-art-container" @click.stop="togglePlay">
                     <img class="cover-art-bg" :src="coverUrl" />
                     <img class="cover-art-fg" :src="coverUrl" />
                 </div>
-
-                <!-- 视频内悬浮注解 (Overlay) -->
+                <!-- 视频内悬浮注解 -->
                 <div class="video-subtitle-overlay" :class="{'note-mode-overlay': true}" v-if="currentIndex >= 0">
                     <div class="video-notes-container">
-                        <div class="v-note-item" v-for="(item, idx) in currentNoteSegments" :key="idx"
-                             @click.stop="handleOverlayNoteClick(item)">
+                        <div class="v-note-item" v-for="(item, idx) in currentNoteSegments" :key="idx" @click.stop="handleOverlayNoteClick(item)">
                             <span class="note-en" :style="{color: item.color}">{{item.prefix}}</span>
                             <span class="note-cn">{{item.suffix}}</span>
                         </div>
                     </div>
                 </div>
-
                 <!-- 气泡 (视频内) -->
-                <div class="popover video-inner-popover" v-if="showPop && clickSource === 'video'" :style="popStyle" @click.stop>
+                <div class="popover video-inner-popover" v-if="showPop && clickSource === 'video'" :style="popStyle" @click.stop="addToVocabulary">
                     <div style="white-space: pre-wrap;">{{ popNote }}</div>
                     <div style="font-size:10px; opacity:0.7; margin-top:6px; text-align:right;">(长按/点击收藏)</div>
                     <div class="pop-arrow" :style="arrowStyle"></div>
                 </div>
-
                 <!-- 固定字幕栏 -->
                 <div id="adaptive-bar" class="current-sentence-bar" v-if="useFixedSubtitleBar && sentences[currentIndex]">
                     <div class="en-text">
                          <span v-for="(seg, i) in sentences[currentIndex].en_segments" :key="i">
-                            <span v-if="seg.type === 'keyword'" class="keyword" :style="{color: seg.color}" 
-                                  @click.stop="showNote(seg, $event, currentIndex, 'video')">{{ seg.text }}</span>
+                            <span v-if="seg.type === 'keyword'" class="keyword" :style="{color: seg.color}" @click.stop="showNote(seg, $event, currentIndex, 'video')">{{ seg.text }}</span>
                             <span v-else>{{ seg.text }}</span>
                         </span>
                     </div>
-                    <div class="cn-text" :class="{'mask-layout': maskMode, 'masked': maskMode && !revealedMap[currentIndex]}"
-                         v-if="showCN" @click.stop="toggleReveal(currentIndex)">
+                    <div class="cn-text" :class="{'mask-layout': maskMode, 'masked': maskMode && !revealedMap[currentIndex]}" v-if="showCN" @click.stop="toggleReveal(currentIndex)">
                          {{ sentences[currentIndex].cn_text }}
                     </div>
                 </div>
@@ -281,27 +140,15 @@
             
             <div v-for="(item, index) in sentences" :key="index" :id="'sent-' + index"
                  class="sentence-group" 
-                 :class="{
-                     'active': currentIndex === index && (!showVideoMode || !useFixedSubtitleBar), 
-                     'revealed': revealedMap[index]
-                 }"
+                 :class="{ 'active': currentIndex === index && (!showVideoMode || !useFixedSubtitleBar), 'revealed': revealedMap[index] }"
                  @click.stop="handleContainerTap($event, index)">
-                
                  <div class="en-text">
                     <span v-for="(seg, i) in item.en_segments" :key="i">
-                        <span v-if="seg.type === 'keyword'" class="keyword" :style="{color: seg.color}" 
-                              :id="'k-'+index+'-'+i"
-                              @click.stop="showNote(seg, $event, index, 'list')">{{ seg.text }}</span>
+                        <span v-if="seg.type === 'keyword'" class="keyword" :style="{color: seg.color}" :id="'k-'+index+'-'+i" @click.stop="showNote(seg, $event, index, 'list')">{{ seg.text }}</span>
                         <span v-else>{{ seg.text }}</span>
                     </span>
                 </div>
-                
-                <div class="cn-text" 
-                     :class="{'mask-layout': maskMode, 'masked': maskMode && !revealedMap[index]}"
-                     v-if="showCN || maskMode"
-                     @click.stop="toggleReveal(index)">
-                    {{ item.cn_text }}
-                </div>
+                <div class="cn-text" :class="{'mask-layout': maskMode, 'masked': maskMode && !revealedMap[index]}" v-if="showCN || maskMode" @click.stop="toggleReveal(index)">{{ item.cn_text }}</div>
             </div>
         </div>
 
@@ -329,7 +176,6 @@
 
         <!-- 底部播放栏 -->
         <div class="player-bar-wrapper">
-            <!-- 进度条悬浮 -->
             <div class="progress-container" :class="{show: showSettingsPopup || isDragging || !isPlaying}">
                 <div class="progress-box">
                     <span class="time-text">{{ currentTimeStr }}</span>
@@ -338,25 +184,19 @@
                     <span class="time-text">{{ durationStr }}</span>
                 </div>
             </div>
-
             <div class="player-controls">
                 <div class="icon-btn" @click.stop="toggleSettingsPopup">☰</div>
-                
                 <div style="display:flex; gap:20px; align-items:center;">
                     <div class="icon-btn" @click.stop="playPrev">ᐊ</div>
                     <div class="icon-btn play-pause-btn" @click.stop="togglePlay">{{ isPlaying ? '❚❚' : '▶' }}</div>
                     <div class="icon-btn" @click.stop="playNext">ᐅ</div>
                 </div>
-
-                <div class="icon-btn mode-btn" 
-                     :class="readingModeType === 0 ? 'mode-auto' : (readingModeType === 1 ? 'mode-manual' : 'mode-silent')" 
-                     @click.stop="toggleReadingMode">
+                <div class="icon-btn mode-btn" :class="readingModeType === 0 ? 'mode-auto' : (readingModeType === 1 ? 'mode-manual' : 'mode-silent')" @click.stop="toggleReadingMode">
                     {{ readingModeType === 0 ? '听书' : (readingModeType === 1 ? '滑动' : '阅读') }}
                 </div>
             </div>
         </div>
 
-        <!-- 加载与提示 -->
         <div class="loading-mask" v-if="isLoading">加载中...</div>
         <div class="toast" v-if="toastMsg">{{ toastMsg }}</div>
     </div>
@@ -385,7 +225,7 @@
 
             // 媒体相关
             const audioObj = ref(new Audio());
-            const videoPlayer = ref(null); // ref to video element
+            const videoPlayer = ref(null); 
             const audioUrl = ref('');
             const videoUrl = ref('');
             const coverUrl = ref('');
@@ -393,8 +233,8 @@
             const currentTimeStr = ref('00:00');
             const durationStr = ref('00:00');
             const progressPercent = ref(0);
-            const isDragging = ref(false);
-            const durationVal = ref(0); // seconds
+            const isDragging = ref(false); // ✅ 修复：已定义且将包含在 return 中
+            const durationVal = ref(0);
 
             // 播放逻辑控制
             const currentIndex = ref(-1);
@@ -416,13 +256,13 @@
             const useFixedSubtitleBar = ref(true);
             const playbackRates = [0.5, 0.8, 1.0, 1.2, 1.5, 2.0];
             const currentRateIndex = ref(2);
-            const playMode = ref(0); // 0顺序, 1单句x3, 2一次, 3跟读
+            const playMode = ref(0); 
             const playModes = ['顺序', '单句×3', '一次', '跟读'];
-            const displayMode = ref(0); // 0双语, 1纯英, 2遮盖, 3无字
+            const displayMode = ref(0); 
             const displayModes = ['双语', '纯英', '遮盖', '无字'];
-            const chapterEndMode = ref(0); // 0停止, 1下一章, 2循环
+            const chapterEndMode = ref(0); 
             const chapterEndModes = ['停止', '下一章', '循环'];
-            const readingModeType = ref(1); // 0自动, 1滑动, 2静默
+            const readingModeType = ref(1); 
 
             // 字体样式
             const fonts = [
@@ -452,7 +292,7 @@
             const maskMode = ref(false);
             const hideAllText = ref(false);
             const revealedMap = ref({});
-            const currentNoteSegments = ref([]); // 视频模式的胶囊注解
+            const currentNoteSegments = ref([]); 
 
             // 触摸相关
             let touchStartX = 0;
@@ -460,17 +300,30 @@
 
             // === 核心方法 ===
 
-            // 1. 初始化
+            // ✅ 核心修复：处理 cloud:// 链接转 https://
+            const processMediaUrl = async (fileId) => {
+                if (!fileId) return '';
+                if (fileId.startsWith('http')) return fileId;
+                if (fileId.startsWith('cloud://')) {
+                    try {
+                        const res = await tcbApp.value.getTempFileURL({ fileList: [fileId] });
+                        if (res.fileList && res.fileList[0].tempFileURL) {
+                            return res.fileList[0].tempFileURL;
+                        }
+                    } catch (e) {
+                        console.error('转换云链接失败', e);
+                    }
+                }
+                return '';
+            };
+
             const init = async () => {
-                // 恢复设置
                 restoreSettings();
                 
-                // URL 参数
                 const params = new URLSearchParams(window.location.search);
                 bookId.value = params.get('bookId');
                 chapterId.value = params.get('chapterId');
                 
-                // 模拟登录/鉴权 (需替换为真实逻辑)
                 const user = localStorage.getItem('web_user_id') || 'guest_' + Math.random().toString(36).substr(2, 6);
                 localStorage.setItem('web_user_id', user);
                 watermarkId.value = 'User: ' + user.substr(-6);
@@ -481,9 +334,8 @@
                     return;
                 }
 
-                // 初始化 CloudBase
                 try {
-                    // ⚠️ 请替换为您的真实环境 ID
+                    // ⚠️⚠️⚠️ 请确保这里的 env ID 与你的云开发环境一致 ⚠️⚠️⚠️
                     const app = window.cloudbase.init({ env: 'cloud1-4gcnkqkl8e5bcae5' }); 
                     tcbApp.value = app;
                     const auth = app.auth({ persistence: 'local' });
@@ -501,7 +353,6 @@
 
             const loadChapterData = async () => {
                 try {
-                    // 调用云函数获取章节 (模拟调用)
                     const res = await tcbApp.value.callFunction({
                         name: 'adminHelper',
                         data: { action: 'getChapter', chapterId: chapterId.value }
@@ -514,25 +365,19 @@
                         sentences.value = data.content;
                         nextChapterId.value = data.nextId || '';
 
-                        if (data.audio_url) audioUrl.value = data.audio_url;
-                        if (data.video_url) videoUrl.value = data.video_url;
-                        if (data.cover_url) coverUrl.value = data.cover_url;
+                        // ✅ 使用 processMediaUrl 转换链接
+                        if (data.audio_url) audioUrl.value = await processMediaUrl(data.audio_url);
+                        if (data.video_url) videoUrl.value = await processMediaUrl(data.video_url);
+                        if (data.cover_url) coverUrl.value = await processMediaUrl(data.cover_url);
 
-                        // 恢复进度
                         const key = `${bookId.value}_${chapterId.value}`;
                         const savedIdx = parseInt(localStorage.getItem(PROGRESS_KEY + '_' + key) || '0');
                         currentIndex.value = savedIdx;
                         
-                        // 初始化媒体监听
                         setupAudioListeners();
-                        
-                        // 初始UI更新
                         updateCurrentSentenceData(savedIdx);
                         setTimeout(() => scrollToCenter(savedIdx), 500);
-                        
-                        // 开始统计
                         startStatTimer();
-
                     } else {
                         showToast(res.result.msg || '加载失败');
                     }
@@ -544,7 +389,6 @@
                 }
             };
 
-            // 2. 媒体控制 (统一 Video 和 Audio)
             const getActiveMedia = () => {
                 if (showVideoMode.value && videoUrl.value) return videoPlayer.value;
                 return audioObj.value;
@@ -563,18 +407,28 @@
                 if (!media) return;
 
                 if (isPlaying.value) {
+                    // 只有在真的在播放时才暂停
                     media.pause();
                 } else {
                     if (!media.src && !showVideoMode.value) media.src = audioUrl.value;
                     media.playbackRate = playbackRates[currentRateIndex.value];
-                    media.play().catch(e => console.log('Autoplay blocked', e));
+                    
+                    // ✅ 修复：处理 Autoplay Promise
+                    const playPromise = media.play();
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(() => { /* 播放成功 */ })
+                            .catch(error => {
+                                console.error("Auto-play blocked:", error);
+                                isPlaying.value = false;
+                            });
+                    }
                 }
             };
 
             const playAt = (index, autoScroll = true) => {
                 if (index < 0 || index >= sentences.value.length) return;
                 
-                // 重置循环/跟读状态
                 currentLoop.value = 0;
                 clearTimeout(shadowTimer.value);
                 shadowLock.value = false;
@@ -584,19 +438,21 @@
                 if (autoScroll) scrollToCenter(index);
                 saveProgress(index);
 
-                if (readingModeType.value === 2) return; // 静默模式不播放
+                if (readingModeType.value === 2) return;
 
                 const sent = sentences.value[index];
                 const media = getActiveMedia();
                 if (media) {
-                    if (!media.src && !showVideoMode.value) media.src = audioUrl.value;
-                    
-                    // 小技巧：稍微加一点点偏移确保触发时间更新
+                    if (!media.src && !showVideoMode.value && audioUrl.value) media.src = audioUrl.value;
+                    if (!media.src && !showVideoMode.value) { console.warn("No audio src"); return; }
+
                     media.currentTime = sent.start + 0.01; 
                     media.playbackRate = playbackRates[currentRateIndex.value];
                     
+                    // 如果还没播放，尝试播放
                     if (!isPlaying.value) {
-                        media.play().catch(e => {});
+                         const p = media.play();
+                         if (p) p.catch(e => console.log('Playback interrupted', e));
                     }
                 }
             };
@@ -610,7 +466,6 @@
                 }
             };
 
-            // 3. 时间更新逻辑 (核心)
             const onMediaTimeUpdate = (e) => {
                 if (isDragging.value) return;
                 const media = e.target;
@@ -625,32 +480,24 @@
                 }
 
                 if (shadowLock.value) {
-                    media.pause(); // 强制暂停
+                    media.pause(); 
                     return;
                 }
 
-                // 播放模式逻辑
                 const currentSent = sentences.value[currentIndex.value];
                 if (currentSent) {
-                    // 模式2: 播放一次
                     if (playMode.value === 2 && time >= currentSent.end) {
                         media.pause();
                         isPlaying.value = false;
                         return;
                     }
-
-                    // 模式1: 单句循环 x3
                     if (playMode.value === 1 && time >= currentSent.end - 0.2) {
-                        if (currentLoop.value < 2) { // 0, 1, 2 = 3次
+                        if (currentLoop.value < 2) {
                             currentLoop.value++;
                             media.currentTime = currentSent.start;
                             return;
-                        } else {
-                            // 循环结束，播放下一句
                         }
                     }
-
-                    // 模式3: 跟读 (Shadowing)
                     if (playMode.value === 3 && time >= currentSent.end - 0.1) {
                          if (!shadowLock.value) {
                              shadowLock.value = true;
@@ -668,23 +515,20 @@
                     }
                 }
 
-                // 查找当前句子
                 const idx = sentences.value.findIndex(s => time >= s.start && time < s.end);
                 if (idx !== -1 && idx !== currentIndex.value) {
                     updateCurrentSentenceData(idx);
-                    if (readingModeType.value === 0) { // 自动滚动
-                        scrollToCenter(idx);
-                    }
+                    if (readingModeType.value === 0) scrollToCenter(idx);
                     saveProgress(idx);
                 }
             };
 
             const handleChapterEnd = () => {
                 const mode = chapterEndMode.value;
-                if (mode === 0) { // 停止
+                if (mode === 0) { 
                     isPlaying.value = false;
                     getActiveMedia()?.pause();
-                } else if (mode === 1) { // 下一章
+                } else if (mode === 1) { 
                     if (nextChapterId.value) {
                         showToast('即将跳转下一章');
                         setTimeout(() => {
@@ -694,25 +538,22 @@
                         showToast('已是最后一章');
                         isPlaying.value = false;
                     }
-                } else if (mode === 2) { // 循环
+                } else if (mode === 2) { 
                     playAt(0);
                 }
             };
 
-            // 4. 数据与UI更新
             const updateCurrentSentenceData = (index) => {
                 currentIndex.value = index;
                 const sent = sentences.value[index];
                 if (!sent) return;
 
-                // 提取 Notes
                 const segs = [];
                 const seen = new Set();
                 if (sent.en_segments) {
                     sent.en_segments.forEach(seg => {
                         if (seg.type === 'keyword' && seg.note && !seen.has(seg.note)) {
                             seen.add(seg.note);
-                            // 简单分割 note: "单词: 解释"
                             const parts = seg.note.split(/[:：]/);
                             segs.push({
                                 prefix: parts[0] || seg.text,
@@ -726,56 +567,42 @@
                 }
                 currentNoteSegments.value = segs;
                 
-                // 字幕栏高度计算 (简单模拟)
                 if (useFixedSubtitleBar.value && showVideoMode.value) {
                     nextTick(() => {
                         const bar = document.getElementById('adaptive-bar');
                         if (bar) adaptiveBarHeight.value = bar.offsetHeight;
                     });
                 }
-
-                // 统计
                 trackSentenceRead(index);
             };
 
-            // 5. 交互处理
             const showNote = (seg, event, sentIdx, source) => {
-                // 暂停播放
                 isPlaying.value = false;
                 getActiveMedia()?.pause();
                 
                 popNote.value = seg.note;
-                currentNoteData.value = { ...seg, sentIdx };
+                // ✅ 修复：正确设置 currentNoteData
+                currentNoteData.value = { text: seg.text, note: seg.note, sentIdx: sentIdx };
+                
                 clickSource.value = source;
                 showPop.value = true;
                 
                 nextTick(() => {
                     const rect = event.target.getBoundingClientRect();
-                    const popHeight = 80; // approximate
-                    const popWidth = 200; // approximate max
+                    const popHeight = 80; 
                     let top = rect.top - popHeight - 10;
-                    let left = rect.left + rect.width/2 - 100; // center-ish
+                    let left = rect.left + rect.width/2 - 100;
                     
-                    // 边界处理
                     if (left < 10) left = 10;
                     if (left + 200 > window.innerWidth) left = window.innerWidth - 210;
                     
-                    // 箭头位置
                     const arrowLeft = rect.left + rect.width/2 - left - 6;
 
                     if (source === 'video') {
-                        // 视频内处理逻辑
                         const videoRect = document.querySelector('.video-container').getBoundingClientRect();
-                         popStyle.value = {
-                            bottom: (window.innerHeight - rect.top + 10) + 'px',
-                            left: left + 'px',
-                            top: 'auto'
-                        };
+                         popStyle.value = { bottom: (window.innerHeight - rect.top + 10) + 'px', left: left + 'px', top: 'auto' };
                     } else {
-                         popStyle.value = {
-                            top: top + 'px',
-                            left: left + 'px'
-                        };
+                         popStyle.value = { top: top + 'px', left: left + 'px' };
                     }
                     arrowStyle.value = { left: arrowLeft + 'px' };
                 });
@@ -783,20 +610,31 @@
 
             const handleOverlayNoteClick = (item) => {
                 popNote.value = item.fullNote;
-                currentNoteData.value = { text: item.prefix, note: item.fullNote };
+                // ✅ 修复：正确设置 currentNoteData
+                currentNoteData.value = { text: item.text, note: item.fullNote, sentIdx: currentIndex.value };
+                
                 clickSource.value = 'video';
                 showPop.value = true;
-                // 简单居中显示
                 popStyle.value = { top: '30%', left: '10%', right: '10%', width: '80%' };
                 arrowStyle.value = { display: 'none' };
             };
 
             const addToVocabulary = () => {
-                if (!currentNoteData.value) return;
+                if (!currentNoteData.value) {
+                    showToast('无法收藏: 数据丢失');
+                    return;
+                }
                 const { text, note, sentIdx } = currentNoteData.value;
-                const sent = sentences.value[sentIdx || currentIndex.value];
+                const sent = sentences.value[sentIdx];
+
+                console.log('Trying to add:', text);
+
+                // ✅ 增加：检查数据库是否初始化
+                if (!db.value) {
+                     showToast('数据库连接失败');
+                     return;
+                }
                 
-                // 存入云数据库
                 db.value.collection('vocabulary').add({
                     english: text,
                     chinese: note,
@@ -809,12 +647,12 @@
                     showToast('收藏成功');
                     showPop.value = false;
                 }).catch(err => {
-                    console.error(err);
-                    showToast('收藏失败或已存在');
+                    console.error('收藏失败:', err);
+                    // Web匿名用户通常没有写入权限，需要去云开发控制台打开权限，或者忽略此错误
+                    showToast('收藏失败: 权限不足或重复'); 
                 });
             };
 
-            // 6. 设置与辅助
             const saveSettings = () => {
                 const s = {
                     themeIndex: themeIndex.value,
@@ -830,7 +668,6 @@
                 };
                 localStorage.setItem(SETTING_KEY, JSON.stringify(s));
                 
-                // Update display derived states
                 showCN.value = (displayMode.value === 0 || displayMode.value === 2 || displayMode.value === 3);
                 maskMode.value = (displayMode.value === 2);
                 hideAllText.value = (displayMode.value === 3);
@@ -854,7 +691,6 @@
                 if (s.fontSizeIndex !== undefined) currentFontSizeIndex.value = s.fontSizeIndex;
             };
 
-            // 切换逻辑
             const toggleVideoMode = () => { showVideoMode.value = !showVideoMode.value; saveSettings(); };
             const toggleFixedSubtitleBar = () => { useFixedSubtitleBar.value = !useFixedSubtitleBar.value; saveSettings(); };
             const cyclePlaybackRate = () => { currentRateIndex.value = (currentRateIndex.value + 1) % playbackRates.length; saveSettings(); if(getActiveMedia()) getActiveMedia().playbackRate = playbackRates[currentRateIndex.value]; };
@@ -866,7 +702,6 @@
             const cycleFontSize = () => { currentFontSizeIndex.value = (currentFontSizeIndex.value + 1) % fontSizes.length; saveSettings(); };
             const toggleReadingMode = () => { readingModeType.value = (readingModeType.value + 1) % 3; saveSettings(); showToast(['听书', '滑动', '阅读'][readingModeType.value]); };
 
-            // 7. 统计逻辑
             const calculateWords = (sent) => sent.en_segments ? sent.en_segments.map(s => s.text).join(' ').trim().split(/\s+/).length : 0;
             const trackSentenceRead = (index) => {
                 if (readSentencesSet.has(index)) return;
@@ -883,18 +718,15 @@
                     if (active && readingModeType.value !== 2) {
                         sessionDuration.value++;
                         if (sessionDuration.value > 0 && sessionDuration.value % 60 === 0) {
-                            uploadStats(); // 每分钟上传一次
+                            uploadStats(); 
                         }
                     }
                 }, 1000);
             };
             const uploadStats = () => {
-                // 模拟上传
                 console.log(`Uploading: ${sessionDuration.value}s, ${sessionWords.value} words`);
-                // tcbApp.value.callFunction(...) 实际调用
             };
 
-            // 8. 辅助功能
             const showToast = (msg) => {
                 toastMsg.value = msg;
                 setTimeout(() => toastMsg.value = '', 2000);
@@ -931,7 +763,6 @@
                 lastInteractionTime.value = Date.now();
                 showPop.value = false;
                 showSettingsPopup.value = false;
-                // 点击句子播放
                 playAt(index, false);
             };
             const onContainerClick = () => { showPop.value = false; showSettingsPopup.value = false; };
@@ -951,8 +782,6 @@
                     revealedMap.value[index] = !revealedMap.value[index];
                 }
             };
-            
-            // Touch handlers
             const handleTouchStart = (e) => {
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
@@ -979,7 +808,7 @@
                 isLoading, toastMsg, watermarkId,
                 sentences, currentIndex, revealedMap, currentNoteSegments,
                 audioUrl, videoUrl, coverUrl, showVideoMode, useFixedSubtitleBar, adaptiveBarHeight,
-                isPlaying, currentTimeStr, durationStr, progressPercent, onSliderChange, onSliderChanging,
+                isPlaying, currentTimeStr, durationStr, progressPercent, onSliderChange, onSliderChanging, isDragging, // ✅ 已包含
                 
                 themeIndex, themeNames, fontSizes, currentFontSizeIndex, currentFontIndex, fonts, isBold,
                 showSettingsPopup, showPop, popNote, popStyle, arrowStyle, clickSource,
